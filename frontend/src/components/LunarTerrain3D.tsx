@@ -1,13 +1,14 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars, Line, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { Camera, Eye, Mountain, Sun, Radio } from 'lucide-react';
+import { Camera, Eye, Mountain, Sun, Radio, Snowflake, Thermometer } from 'lucide-react';
 import type {
   TerrainGridData,
   TimelineStep,
   SolarArrayType,
   LunarSite,
+  ThermalMetrics,
 } from '../types/mission';
 
 interface LunarTerrain3DProps {
@@ -16,13 +17,13 @@ interface LunarTerrain3DProps {
   timeline: TimelineStep[];
   currentStepIndex: number;
   arrayType: SolarArrayType;
+  thermalMetrics?: ThermalMetrics;
+  scenarioBadge?: string;
+  compactMode?: boolean;
+  externalShowPsr?: boolean;
+  onTogglePsr?: (val: boolean) => void;
 }
 
-// Convert topocentric (az_deg, el_deg, radius) to Three.js world coordinates
-// Convention in our Three.js scene:
-//   +X = East, -X = West
-//   +Z = South, -Z = North (so Azimuth 0° North is along -Z, Azimuth 90° East is along +X)
-//   +Y = Up (Elevation)
 function azElToVector3(azDeg: number, elDeg: number, radius: number): [number, number, number] {
   const azRad = (azDeg * Math.PI) / 180;
   const elRad = (elDeg * Math.PI) / 180;
@@ -36,17 +37,55 @@ function azElToVector3(azDeg: number, elDeg: number, radius: number): [number, n
 interface TerrainMeshProps {
   terrainGrid: TerrainGridData;
   verticalExaggeration: number;
+  showPsrOverlay: boolean;
+  siteLatDeg: number;
 }
 
 const RegolithTerrainMesh: React.FC<TerrainMeshProps> = ({
   terrainGrid,
   verticalExaggeration,
+  showPsrOverlay,
+  siteLatDeg,
 }) => {
+  const [diffuseTexture, setDiffuseTexture] = useState<THREE.Texture | null>(null);
+
+  // Load Base64 LROC WAC diffuse texture or FastAPI `/static/` texture URL
+  useEffect(() => {
+    const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(/\/api$/, '');
+    const staticUrl = showPsrOverlay
+      ? terrainGrid.lroc_psr_texture_url
+        ? `${backendOrigin}${terrainGrid.lroc_psr_texture_url}`
+        : undefined
+      : terrainGrid.lroc_texture_url
+      ? `${backendOrigin}${terrainGrid.lroc_texture_url}`
+      : undefined;
+
+    const uri = showPsrOverlay
+      ? terrainGrid.lroc_psr_texture_base64 || staticUrl || terrainGrid.lroc_texture_base64
+      : terrainGrid.lroc_texture_base64 || staticUrl;
+
+    if (!uri) {
+      setDiffuseTexture(null);
+      return;
+    }
+
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      uri,
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.needsUpdate = true;
+        setDiffuseTexture(tex);
+      },
+      undefined,
+      () => setDiffuseTexture(null)
+    );
+  }, [terrainGrid.lroc_texture_base64, terrainGrid.lroc_psr_texture_base64, showPsrOverlay]);
+
   const geometry = useMemo(() => {
     const N = terrainGrid.grid_size;
     const elevations = terrainGrid.elevations_m;
     const baseElev = terrainGrid.lander_pos.z_m;
-    // Scene width = 20 units (1 unit = 1 km)
     const patchSizeScene = 20.0;
     const geom = new THREE.PlaneGeometry(patchSizeScene, patchSizeScene, N - 1, N - 1);
     geom.rotateX(-Math.PI / 2);
@@ -56,37 +95,47 @@ const RegolithTerrainMesh: React.FC<TerrainMeshProps> = ({
 
     const minE = terrainGrid.min_elev_m;
     const maxE = Math.max(minE + 10, terrainGrid.max_elev_m);
+    const rimThreshold = minE + 0.65 * (maxE - minE);
+    const isPolar = Math.abs(siteLatDeg) > 75;
 
     for (let idx = 0; idx < posAttr.count; idx++) {
-      // PlaneGeometry vertices go row by row from top (-Z, North) to bottom (+Z, South)
       const col = idx % N;
       const rowFromNorth = Math.floor(idx / N);
-      // In our backend, row i=0 is South (-10km) and row i=N-1 is North (+10km)
       const demRow = N - 1 - rowFromNorth;
       const zMeters = elevations[demRow]?.[col] ?? baseElev;
       const relKm = ((zMeters - baseElev) / 1000.0) * verticalExaggeration;
 
       posAttr.setY(idx, relKm);
 
-      // Subtle regolith albedo + elevation shading
       const norm = Math.max(0, Math.min(1, (zMeters - minE) / (maxE - minE)));
-      const shade = 0.26 + 0.36 * norm;
-      colors[idx * 3] = shade;
-      colors[idx * 3 + 1] = shade * 1.01;
-      colors[idx * 3 + 2] = shade * 1.05;
+      const isColdTrap = isPolar && rimThreshold - zMeters > 190;
+
+      if (showPsrOverlay && isColdTrap) {
+        // Highlight Permanently Shadowed Regions (PSRs) in vivid cryogenic blue/purple hue
+        colors[idx * 3] = 0.22;
+        colors[idx * 3 + 1] = 0.34;
+        colors[idx * 3 + 2] = 0.88;
+      } else {
+        const shade = diffuseTexture ? 0.88 + 0.12 * norm : 0.26 + 0.38 * norm;
+        colors[idx * 3] = shade;
+        colors[idx * 3 + 1] = shade * 1.01;
+        colors[idx * 3 + 2] = shade * 1.04;
+      }
     }
 
     geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geom.computeVertexNormals();
     return geom;
-  }, [terrainGrid, verticalExaggeration]);
+  }, [terrainGrid, verticalExaggeration, showPsrOverlay, siteLatDeg, diffuseTexture]);
 
   return (
     <mesh geometry={geometry} receiveShadow castShadow>
       <meshStandardMaterial
+        key={diffuseTexture ? 'textured' : 'vertex'}
+        map={diffuseTexture || null}
         vertexColors
-        roughness={0.93}
-        metalness={0.06}
+        roughness={0.91}
+        metalness={0.07}
       />
     </mesh>
   );
@@ -108,28 +157,25 @@ const LanderBeacon: React.FC<LanderBeaconProps> = ({ currentStep, arrayType }) =
   });
 
   const statusColor = currentStep.joint_operational
-    ? '#10B981' // Green: Power + DTE Comms
+    ? '#10B981'
     : currentStep.sun_visible
-    ? '#F59E0B' // Gold: Power Only
+    ? '#F59E0B'
     : currentStep.earth_visible
-    ? '#38BDF8' // Cyan: Comms Only (Battery Draw)
-    : '#EF4444'; // Red: Full Eclipse & Comms Blackout
+    ? '#38BDF8'
+    : '#EF4444';
 
   return (
     <group position={[0, 0.04, 0]}>
-      {/* Animated Telemetry Ring on Surface */}
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <ringGeometry args={[0.25, 0.38, 32]} />
         <meshBasicMaterial color={statusColor} side={THREE.DoubleSide} transparent opacity={0.85} />
       </mesh>
 
-      {/* Lander Base Structure */}
       <mesh position={[0, 0.14, 0]} castShadow>
         <cylinderGeometry args={[0.14, 0.2, 0.24, 8]} />
         <meshStandardMaterial color="#E5E7EB" metalness={0.5} roughness={0.3} />
       </mesh>
 
-      {/* Hardware-Specific Solar Array Geometry Visual */}
       {arrayType === 'vertical_cylindrical' && (
         <mesh position={[0, 0.42, 0]} castShadow>
           <cylinderGeometry args={[0.09, 0.09, 0.45, 16]} />
@@ -143,7 +189,7 @@ const LanderBeacon: React.FC<LanderBeaconProps> = ({ currentStep, arrayType }) =
       )}
 
       {arrayType === 'dual_axis_tracking' && (
-        <group position={[0, 0.36, 0]} rotation={[0, ((-currentStep.sun_az * Math.PI) / 180), 0]}>
+        <group position={[0, 0.36, 0]} rotation={[0, (-currentStep.sun_az * Math.PI) / 180, 0]}>
           <mesh castShadow>
             <boxGeometry args={[0.52, 0.22, 0.03]} />
             <meshStandardMaterial
@@ -177,14 +223,26 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
   timeline,
   currentStepIndex,
   arrayType,
+  thermalMetrics,
+  scenarioBadge,
+  compactMode = false,
+  externalShowPsr,
+  onTogglePsr,
 }) => {
   const [cameraMode, setCameraMode] = useState<'orbital' | 'surface'>('orbital');
   const [verticalExaggeration, setVerticalExaggeration] = useState<number>(2.5);
+  const [internalShowPsr, setInternalShowPsr] = useState<boolean>(false);
+
+  const showPsr = externalShowPsr !== undefined ? externalShowPsr : internalShowPsr;
+  const handleTogglePsr = () => {
+    const next = !showPsr;
+    if (onTogglePsr) onTogglePsr(next);
+    else setInternalShowPsr(next);
+  };
 
   const currentStep = timeline[currentStepIndex] || timeline[0];
   const skyRadius = 12.5;
 
-  // Sun and Earth 3D sky-dome positions
   const sunPos = useMemo(
     () =>
       currentStep
@@ -201,21 +259,18 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
     [currentStep]
   );
 
-  // Directional shadow light positioned slightly higher when grazing so Three.js shadow map casts long crater shadows cleanly
   const shadowLightPos = useMemo(() => {
     if (!currentStep) return [0, 4, -12] as [number, number, number];
     const effectiveEl = Math.max(1.2, currentStep.sun_el + 1.5);
     return azElToVector3(currentStep.sun_az, effectiveEl, 18.0);
   }, [currentStep]);
 
-  // Sun trajectory 3D polyline points
   const sunArcPoints = useMemo(() => {
     return timeline.map((s) =>
       azElToVector3(s.sun_az, Math.max(-3, s.sun_el), skyRadius)
     );
   }, [timeline]);
 
-  // Earth libration 3D polyline points
   const earthArcPoints = useMemo(() => {
     return timeline.map((s) =>
       azElToVector3(s.earth_az, Math.max(-3, s.earth_el), skyRadius * 0.92)
@@ -223,23 +278,44 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
   }, [timeline]);
 
   return (
-    <div className="bg-[#111827] border border-gray-800 rounded-xl p-3.5 flex flex-col justify-between h-full shadow-lg relative overflow-hidden">
+    <div className="bg-[#111827] border border-gray-800 rounded-xl p-3 flex flex-col justify-between h-full shadow-lg relative overflow-hidden">
       {/* Top Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 pb-2 mb-2 z-10">
         <div className="flex items-center gap-2">
-          <Mountain className="w-4 h-4 text-amber-400" />
+          <Mountain className="w-4 h-4 text-amber-400 shrink-0" />
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono">
-              3D Lunar Terrain DEM & Grazing Ray-Cast Simulator
-            </h2>
-            <p className="text-[11px] text-gray-400">
-              {site.name} • 20 km × 20 km Patch (64×64 LOLA Grid)
+            <div className="flex items-center gap-2">
+              {scenarioBadge && (
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
+                  {scenarioBadge}
+                </span>
+              )}
+              <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono">
+                {site.name}
+              </h2>
+            </div>
+            <p className="text-[10px] text-gray-400 font-mono">
+              LOLA {terrainGrid.grid_size}×{terrainGrid.grid_size} DEM • LROC WAC Texture • PSR Cold-Trap Mask
             </p>
           </div>
         </div>
 
-        {/* Camera & Relief Controls */}
-        <div className="flex items-center gap-1.5">
+        {/* PSR Hazard Overlay & Camera Controls */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleTogglePsr}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold border transition ${
+              showPsr
+                ? 'bg-indigo-600/35 text-indigo-200 border-indigo-400 shadow-sm shadow-indigo-500/30'
+                : 'bg-[#0B0F19] text-gray-300 border-gray-700 hover:text-white'
+            }`}
+            title="Highlight Permanently Shadowed Regions (PSRs) & Cryogenic Cold Traps in 3D"
+          >
+            <Snowflake className={`w-3.5 h-3.5 ${showPsr ? 'text-sky-300 animate-spin' : 'text-indigo-400'}`} />
+            {showPsr ? 'PSRs Active' : 'Show PSRs'}
+          </button>
+
           <div className="inline-flex rounded-lg bg-[#0B0F19] p-0.5 border border-gray-700 text-[11px] font-mono">
             <button
               type="button"
@@ -251,7 +327,7 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
               }`}
             >
               <Camera className="w-3 h-3" />
-              Orbital Tactical
+              {compactMode ? 'Orbital' : 'Orbital Tactical'}
             </button>
             <button
               type="button"
@@ -263,7 +339,7 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
               }`}
             >
               <Eye className="w-3 h-3" />
-              Lander Horizon
+              {compactMode ? 'Surface' : 'Lander Horizon'}
             </button>
           </div>
 
@@ -273,15 +349,19 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
             className="bg-[#0B0F19] border border-gray-700 rounded-lg px-2 py-1 text-[11px] font-mono text-gray-300"
             title="Vertical Terrain Exaggeration Factor"
           >
-            <option value={1}>1.0x True Scale</option>
-            <option value={2.5}>2.5x LOLA Relief</option>
-            <option value={4}>4.0x Deep Relief</option>
+            <option value={1}>1.0x Scale</option>
+            <option value={2.5}>2.5x Relief</option>
+            <option value={4}>4.0x Relief</option>
           </select>
         </div>
       </div>
 
       {/* 3D Canvas Viewport */}
-      <div className="relative flex-1 min-h-[300px] w-full rounded-lg overflow-hidden bg-[#060911] border border-gray-800/80">
+      <div
+        className={`relative flex-1 ${
+          compactMode ? 'min-h-[290px]' : 'min-h-[340px]'
+        } w-full rounded-lg overflow-hidden bg-[#060911] border border-gray-800/80`}
+      >
         <Canvas
           shadows
           key={cameraMode}
@@ -293,13 +373,12 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
           }}
         >
           <color attach="background" args={['#05070E']} />
-          <Stars radius={50} depth={30} count={1500} factor={2.5} saturation={0} fade />
+          <Stars radius={50} depth={30} count={1400} factor={2.5} saturation={0} fade />
 
-          {/* Ambient & Grazing Solar Directional Illumination */}
-          <ambientLight intensity={currentStep?.sun_visible ? 0.22 : 0.09} color="#94A3B8" />
+          <ambientLight intensity={currentStep?.sun_visible ? 0.24 : 0.1} color="#94A3B8" />
           <directionalLight
             position={shadowLightPos}
-            intensity={currentStep?.sun_visible ? 2.4 * Math.max(0.25, currentStep.sun_fraction) : 0.12}
+            intensity={currentStep?.sun_visible ? 2.5 * Math.max(0.25, currentStep.sun_fraction) : 0.12}
             color={currentStep?.sun_visible ? '#FDE68A' : '#EF4444'}
             castShadow
             shadow-mapSize-width={1024}
@@ -312,18 +391,17 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
             shadow-camera-bottom={-12}
           />
 
-          {/* 64x64 Displaced Lunar Regolith Terrain Mesh */}
           <RegolithTerrainMesh
             terrainGrid={terrainGrid}
             verticalExaggeration={verticalExaggeration}
+            showPsrOverlay={showPsr}
+            siteLatDeg={site.lat_deg}
           />
 
-          {/* Central Lander & Solar Array Beacon */}
           {currentStep && (
             <LanderBeacon currentStep={currentStep} arrayType={arrayType} />
           )}
 
-          {/* Sun Sky-Dome Trajectory & Glowing Solar Sphere */}
           {sunArcPoints.length > 1 && (
             <Line
               points={sunArcPoints}
@@ -349,7 +427,6 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
             </Html>
           </mesh>
 
-          {/* Earth Libration Trajectory & Blue-Marbled Earth Sphere */}
           {earthArcPoints.length > 1 && (
             <Line
               points={earthArcPoints}
@@ -375,10 +452,9 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
             </Html>
           </mesh>
 
-          {/* Compass Cardinal Markers at Patch Perimeter */}
           <Html position={[0, 0.4, -9.6]} center distanceFactor={20}>
             <span className="px-1.5 py-0.5 rounded bg-slate-900/90 text-sky-400 border border-sky-500/40 text-[10px] font-mono font-bold">
-              N (0° EARTHWARD)
+              N (0° EARTH)
             </span>
           </Html>
           <Html position={[9.6, 0.4, 0]} center distanceFactor={20}>
@@ -406,36 +482,49 @@ export const LunarTerrain3D: React.FC<LunarTerrain3DProps> = ({
           />
         </Canvas>
 
-        {/* HUD Overlay Badge in Bottom-Left of 3D Viewport */}
-        <div className="absolute bottom-2.5 left-2.5 bg-slate-950/85 backdrop-blur-md border border-gray-800 rounded-lg px-2.5 py-1.5 text-[11px] font-mono space-y-0.5 pointer-events-none">
-          <div className="flex items-center gap-3">
+        {/* Bottom-Left Telemetry & Diviner Thermal HUD Overlay */}
+        <div className="absolute bottom-2 left-2 bg-slate-950/85 backdrop-blur-md border border-gray-800 rounded-lg px-2.5 py-1.5 text-[10px] font-mono space-y-0.5 pointer-events-none">
+          <div className="flex items-center gap-2.5">
             <span className="text-gray-400">
-              Lander Datum: <strong className="text-white">{site.elev_m >= 0 ? `+${site.elev_m}m` : `${site.elev_m}m`}</strong>
+              Elev: <strong className="text-white">{site.elev_m >= 0 ? `+${site.elev_m}m` : `${site.elev_m}m`}</strong>
             </span>
             <span className="text-gray-400">
-              Coords: <strong className="text-white">{site.lat_deg}°, {site.lon_deg}°</strong>
+              Slope: <strong className="text-white">{terrainGrid.mean_slope_deg ?? 4.5}°</strong>
+            </span>
+            <span className="text-indigo-300">
+              PSR Area: <strong>{terrainGrid.psr_area_percentage ?? 0}%</strong>
             </span>
           </div>
-          <div className="flex items-center gap-3 text-[10px]">
-            <span className="flex items-center gap-1 text-amber-400">
-              <Sun className="w-3 h-3" /> Ray: {currentStep?.sun_visible ? 'ILLUMINATED' : 'OCCLUDED BY TERRAIN'}
+          <div className="flex items-center gap-2.5">
+            <span className={`flex items-center gap-1 ${currentStep?.sun_visible ? 'text-amber-400' : 'text-red-400'}`}>
+              <Sun className="w-3 h-3" /> {currentStep?.sun_visible ? `${currentStep.power_kw.toFixed(2)}kW` : 'ECLIPSE'}
             </span>
-            <span className="flex items-center gap-1 text-sky-400">
-              <Radio className="w-3 h-3" /> Link: {currentStep?.earth_visible ? 'DTE ACTIVE' : 'TERRAIN MASKED'}
+            <span className={`flex items-center gap-1 ${currentStep?.earth_visible ? 'text-sky-400' : 'text-red-400'}`}>
+              <Radio className="w-3 h-3" /> {currentStep?.earth_visible ? 'DTE LINK' : 'OCCLUDED'}
             </span>
+            {thermalMetrics && (
+              <span
+                className={`flex items-center gap-1 ${
+                  (currentStep?.local_temp_k ?? thermalMetrics.local_temp_k ?? thermalMetrics.temp_min_k) < 70
+                    ? 'text-rose-400 font-bold'
+                    : 'text-emerald-400'
+                }`}
+              >
+                <Thermometer className="w-3 h-3" />{' '}
+                {currentStep?.local_temp_k ?? thermalMetrics.local_temp_k ?? thermalMetrics.temp_max_k}K (
+                {thermalMetrics.temp_min_k}K–{thermalMetrics.temp_max_k}K)
+              </span>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Footer Instructions */}
-      <div className="pt-2 flex flex-wrap items-center justify-between text-[11px] text-gray-400">
-        <span>Drag to orbit 3D DEM • Scroll to zoom • Right-click to pan</span>
-        <span className="font-mono text-gray-300">
-          Beacon Ring:{' '}
-          <strong className="text-emerald-400">Green=Both</strong> •{' '}
-          <strong className="text-amber-400">Gold=Sun</strong> •{' '}
-          <strong className="text-red-400">Red=Eclipse</strong>
-        </span>
+        {/* Top-Right PSR Hazard Legend Pill when active */}
+        {showPsr && (
+          <div className="absolute top-2 right-2 bg-indigo-950/90 border border-indigo-400/60 rounded-md px-2 py-1 text-[10px] font-mono text-indigo-200 flex items-center gap-1.5 pointer-events-none">
+            <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block" />
+            Cryo Cold Traps (PSRs &lt;70K) Highlighted
+          </div>
+        )}
       </div>
     </div>
   );

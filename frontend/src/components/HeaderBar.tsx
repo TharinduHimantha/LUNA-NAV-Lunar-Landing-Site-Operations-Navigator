@@ -10,12 +10,15 @@ import {
   BookOpen,
   Sparkles,
   X,
+  Columns,
+  Maximize2,
 } from 'lucide-react';
 import type {
   LunarSite,
   SolarArrayType,
   PersonaMode,
   CustomSiteInput,
+  WorkspaceViewMode,
 } from '../types/mission';
 
 interface HeaderBarProps {
@@ -35,6 +38,8 @@ interface HeaderBarProps {
   onChangeCommsMargin: (margin: number) => void;
   personaMode: PersonaMode;
   onChangePersonaMode: (mode: PersonaMode) => void;
+  workspaceViewMode: WorkspaceViewMode;
+  onChangeWorkspaceViewMode: (mode: WorkspaceViewMode) => void;
   onPinCurrentScenario: () => void;
   pinnedCount: number;
   onOpenTutorial: () => void;
@@ -59,6 +64,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onChangeCommsMargin,
   personaMode,
   onChangePersonaMode,
+  workspaceViewMode,
+  onChangeWorkspaceViewMode,
   onPinCurrentScenario,
   pinnedCount,
   onOpenTutorial,
@@ -93,16 +100,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     setShowCustomModal(false);
   };
 
-  // Click handler on mini polar map inside custom modal
   const handlePolarMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const cx = rect.width / 2;
     const cy = rect.height / 2;
     const dx = e.clientX - rect.left - cx;
-    const dy = cy - (e.clientY - rect.top); // +Y is North (0° Lon)
+    const dy = cy - (e.clientY - rect.top);
     const maxR = cx * 0.88;
     const r = Math.min(maxR, Math.hypot(dx, dy));
-    // Map radius [0..maxR] to [-90°..-80°] South Pole region
     const lat = Number((-90 + (r / maxR) * 10).toFixed(2));
     const lon = Number((((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360).toFixed(2));
     setDraftCustom((prev) => ({
@@ -127,45 +132,76 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 <h1 className="text-sm md:text-base font-bold tracking-wider text-white font-mono">
                   LUNA-NAV <span className="text-amber-400 font-normal">//</span>{' '}
                   <span className="text-gray-300 font-sans font-semibold text-xs md:text-sm">
-                    Lunar Landing Site & Ephemeris Navigator
+                    Lunar Landing Site & Dataset Comparator
                   </span>
                 </h1>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-700/50">
-                  {ephemerisEngine === 'skyfield_de421' ? 'JPL DE421 + LOLA' : 'IAU SELENOGRAPHIC + LOLA'}
+                  {ephemerisEngine === 'skyfield_de421'
+                    ? 'DE421 + LOLA 128ppd + DIVINER + LROC'
+                    : 'IAU + LOLA 128ppd + DIVINER + LROC'}
                 </span>
               </div>
               <p className="text-[11px] text-gray-400 hidden sm:block">
-                2026 NASA Space Apps Challenge • Topocentric Solar Power, Horizon Ray-Casting & DTE Comms
+                2026 NASA Space Apps Challenge • Phase 2 Real Planetary Datasets & Split-Screen Trade-Off UX
               </p>
             </div>
           </div>
 
-          {/* Persona Mode Toggle & Guided Tools */}
-          <div className="flex items-center gap-2">
+          {/* Primary Workspace Mode Toggle (Split-Screen Compare vs Single-Site Deep Dive) & Persona */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Comparison-First UX Toggle */}
+            <div className="inline-flex rounded-lg bg-[#111827] p-0.5 border border-amber-500/40">
+              <button
+                type="button"
+                onClick={() => onChangeWorkspaceViewMode('compare')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold transition-all ${
+                  workspaceViewMode === 'compare'
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <Columns className="w-3.5 h-3.5" />
+                Split-Screen Compare (A vs B)
+              </button>
+              <button
+                type="button"
+                onClick={() => onChangeWorkspaceViewMode('single')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold transition-all ${
+                  workspaceViewMode === 'single'
+                    ? 'bg-sky-500 text-slate-950 shadow'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                Single-Site Deep Dive
+              </button>
+            </div>
+
+            {/* Persona Mode Toggle */}
             <div className="inline-flex rounded-lg bg-[#111827] p-0.5 border border-gray-800">
               <button
                 type="button"
                 onClick={() => onChangePersonaMode('engineering')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
                   personaMode === 'engineering'
-                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow'
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
                     : 'text-gray-400 hover:text-gray-200'
                 }`}
               >
                 <Wrench className="w-3.5 h-3.5" />
-                Engineering Planner
+                <span className="hidden xl:inline">Planner</span>
               </button>
               <button
                 type="button"
                 onClick={() => onChangePersonaMode('educator')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
                   personaMode === 'educator'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                     : 'text-gray-400 hover:text-gray-200'
                 }`}
               >
                 <GraduationCap className="w-3.5 h-3.5" />
-                Educator / Explorer
+                <span className="hidden xl:inline">Educator</span>
               </button>
             </div>
 
@@ -176,7 +212,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               title="Launch Interactive Step-by-Step Mission Tutorial"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Interactive Tutorial</span>
+              <span className="hidden md:inline">Tutorial</span>
             </button>
 
             <button
@@ -198,7 +234,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <div className="flex items-center gap-1.5 bg-[#111827] border border-gray-700/80 rounded-lg px-2.5 py-1">
               <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <label htmlFor="site-select" className="text-[11px] uppercase tracking-wider text-gray-400 font-mono">
-                Site:
+                {workspaceViewMode === 'compare' ? 'Primary (A):' : 'Site:'}
               </label>
               <select
                 id="site-select"
@@ -230,7 +266,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <div className="flex items-center gap-1.5 bg-[#111827] border border-gray-700/80 rounded-lg px-2.5 py-1">
               <Calendar className="w-3.5 h-3.5 text-sky-400 shrink-0" />
               <label htmlFor="start-date" className="text-[11px] uppercase tracking-wider text-gray-400 font-mono">
-                Landing UTC:
+                Base UTC:
               </label>
               <input
                 id="start-date"
@@ -351,9 +387,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                         onChange={(e) => onChangeCommsMargin(Number(e.target.value))}
                         className="w-full"
                       />
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Minimum elevation above local terrain horizon required to prevent lunar regolith multipath scatter.
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -369,13 +402,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/40 transition"
             >
               <PlusCircle className="w-3.5 h-3.5" />
-              Pin to Trade-Off Matrix ({pinnedCount}/4)
+              Pin to 4-Site Matrix ({pinnedCount}/4)
             </button>
           </div>
         </div>
       </header>
 
-      {/* Custom Coordinates & Interactive Polar Map Picker Modal */}
+      {/* Custom Coordinates Modal */}
       {showCustomModal && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#111827] border border-gray-700 rounded-xl max-w-lg w-full p-5 shadow-2xl">
@@ -383,7 +416,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-amber-400" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-white font-mono">
-                  Custom Selenographic Coordinates & Terrain Synthesizer
+                  Custom Selenographic Coordinates & LOLA 128×128 Extractor
                 </h2>
               </div>
               <button
@@ -397,7 +430,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
             <form onSubmit={handleApplyCustomSite} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                {/* Interactive Click-to-Select Lunar South Pole Map */}
                 <div className="flex flex-col items-center bg-[#0B0F19] p-3 rounded-lg border border-gray-800">
                   <span className="text-[11px] font-mono text-gray-400 mb-2">
                     Click South Pole Map (80°S–90°S)
@@ -426,7 +458,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     <text x={18} y={88} textAnchor="middle" fill="#9CA3AF" fontSize={8} fontFamily="monospace">
                       270°W
                     </text>
-                    {/* Plot selected marker if in polar region */}
                     {(() => {
                       const rNorm = Math.min(1, Math.max(0, (90 - Math.abs(draftCustom.lat_deg)) / 10));
                       const rPx = rNorm * 74;
@@ -443,7 +474,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   </svg>
                 </div>
 
-                {/* Coordinate Numeric Inputs */}
                 <div className="space-y-2.5">
                   <div>
                     <label className="block text-gray-400 mb-1">Site Designation:</label>
@@ -536,7 +566,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   type="submit"
                   className="px-4 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition"
                 >
-                  Synthesize 3D DEM & Evaluate Ephemeris
+                  Extract 128×128 DEM &amp; Evaluate Ephemeris
                 </button>
               </div>
             </form>

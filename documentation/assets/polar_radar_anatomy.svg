@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" width="100%" height="100%">
+  <rect width="900" height="520" rx="12" fill="#0B0F19"/>
+  <text x="30" y="36" fill="#FFFFFF" font-family="monospace" font-size="16" font-weight="bold">ANATOMY OF THE 360° POLAR AZIMUTHAL HORIZON SKY-RADAR</text>
+  <text x="30" y="56" fill="#94A3B8" font-family="monospace" font-size="12">How Mission Planners Visually Spot Solar Eclipses &amp; Earth Libration Blackouts at a Glance</text>
+
+  <!-- Radar Circle on Left -->
+  <g transform="translate(250, 285)">
+    <circle cx="0" cy="0" r="190" fill="#090D16" stroke="#334155" stroke-width="2"/>
+    <!-- Elevation Rings -->
+    <circle cx="0" cy="0" r="150" fill="none" stroke="#64748B" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <circle cx="0" cy="0" r="110" fill="none" stroke="#1E293B" stroke-dasharray="3 3"/>
+    <circle cx="0" cy="0" r="65" fill="none" stroke="#1E293B" stroke-dasharray="3 3"/>
+
+    <!-- Spokes -->
+    <line x1="0" y1="-190" x2="0" y2="190" stroke="#1E293B"/>
+    <line x1="-190" y1="0" x2="190" y2="0" stroke="#1E293B"/>
+
+    <!-- Terrain Mask Polygon (Gray Shaded Outer Ring with Mountain Bulges) -->
+    <path d="M 0,-190 L 190,-190 L 190,190 L -190,190 L -190,-190 Z
+             M 0,-145 L 45,-140 L 85,-105 L 135,-130 L 145,0 L 138,95 L 70,138 L 0,145 L -80,135 L -102,45 L -142,0 L -110,-98 L -45,-142 Z"
+          fill="#334155" fill-opacity="0.75" fill-rule="evenodd" stroke="#94A3B8" stroke-width="1.5"/>
+
+    <!-- 360° Sun Path (Gold Circle) -->
+    <circle cx="0" cy="0" r="126" fill="none" stroke="#F59E0B" stroke-width="2.5"/>
+
+    <!-- Eclipse Intersection Highlight at Az ~60° and Az ~300° -->
+    <circle cx="76" cy="-98" r="18" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="3 2"/>
+    <circle cx="-98" cy="-82" r="18" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="3 2"/>
+
+    <!-- Earth Libration Loop at 0° North -->
+    <ellipse cx="0" cy="-136" rx="22" ry="34" fill="none" stroke="#38BDF8" stroke-width="2.5"/>
+    <circle cx="8" cy="-115" r="8" fill="#0284C7" stroke="#38BDF8" stroke-width="2"/>
+
+    <!-- Active Sun Marker -->
+    <circle cx="126" cy="0" r="9" fill="#F59E0B" stroke="#FEF3C7" stroke-width="2"/>
+    <line x1="0" y1="0" x2="126" y2="0" stroke="#F59E0B" stroke-width="1.5"/>
+
+    <!-- Center Lander -->
+    <circle cx="0" cy="0" r="5" fill="#10B981"/>
+
+    <!-- Compass Labels -->
+    <text x="0" y="-198" text-anchor="middle" fill="#38BDF8" font-family="monospace" font-size="12" font-weight="bold">0° N (TOWARD EARTH)</text>
+    <text x="200" y="4" fill="#CBD5E1" font-family="monospace" font-size="12" font-weight="bold">90° E</text>
+    <text x="0" y="210" text-anchor="middle" fill="#CBD5E1" font-family="monospace" font-size="12" font-weight="bold">180° S</text>
+    <text x="-200" y="4" text-anchor="end" fill="#CBD5E1" font-family="monospace" font-size="12" font-weight="bold">270° W</text>
+
+    <!-- Ring Labels -->
+    <text x="6" y="-153" fill="#94A3B8" font-family="monospace" font-size="9">0° Flat Horizon</text>
+    <text x="6" y="-113" fill="#64748B" font-family="monospace" font-size="9">+2° El</text>
+    <text x="6" y="-68" fill="#64748B" font-family="monospace" font-size="9">+5° El</text>
+  </g>
+
+  <!-- Right Side Callout Boxes -->
+  <g transform="translate(500, 85)">
+    <rect x="0" y="0" width="375" height="82" rx="8" fill="#111827" stroke="#94A3B8"/>
+    <text x="14" y="22" fill="#E2E8F0" font-family="monospace" font-size="12" font-weight="bold">1. Gray Polygon = 360° Mountain Mask H(Az)</text>
+    <text x="14" y="42" fill="#94A3B8" font-family="sans-serif" font-size="11">Ray-cast across the 128×128 LOLA DEM. Where the gray wall</text>
+    <text x="14" y="58" fill="#94A3B8" font-family="sans-serif" font-size="11">bulges INWARD toward the center, a mountain peak blocks</text>
+    <text x="14" y="74" fill="#94A3B8" font-family="sans-serif" font-size="11">the sky at that compass azimuth.</text>
+
+    <rect x="0" y="96" width="375" height="82" rx="8" fill="#111827" stroke="#F59E0B"/>
+    <text x="14" y="118" fill="#F59E0B" font-family="monospace" font-size="12" font-weight="bold">2. Gold Circle = 360° Polar Sun Trajectory</text>
+    <text x="14" y="138" fill="#94A3B8" font-family="sans-serif" font-size="11">At the South Pole, the Sun circles all 360° around the</text>
+    <text x="14" y="154" fill="#94A3B8" font-family="sans-serif" font-size="11">horizon at ~1.5° elevation. Anywhere the Gold Circle stays</text>
+    <text x="14" y="170" fill="#94A3B8" font-family="sans-serif" font-size="11">inside the gray polygon, the lander is in FULL SUNLIGHT.</text>
+
+    <rect x="0" y="192" width="375" height="82" rx="8" fill="#111827" stroke="#EF4444"/>
+    <text x="14" y="214" fill="#F87171" font-family="monospace" font-size="12" font-weight="bold">3. Red Dashed Circles = Eclipse Windows!</text>
+    <text x="14" y="234" fill="#94A3B8" font-family="sans-serif" font-size="11">Where a gray mountain peak pokes INWARD across the gold</text>
+    <text x="14" y="250" fill="#94A3B8" font-family="sans-serif" font-size="11">Sun track (H(Az) &gt; El_sun), the Sun is occluded behind rock,</text>
+    <text x="14" y="266" fill="#94A3B8" font-family="sans-serif" font-size="11">forcing the lander onto its 50-hour survival battery.</text>
+
+    <rect x="0" y="288" width="375" height="92" rx="8" fill="#111827" stroke="#38BDF8"/>
+    <text x="14" y="310" fill="#38BDF8" font-family="monospace" font-size="12" font-weight="bold">4. Cyan Oval at 0° N = Earth Libration Loop</text>
+    <text x="14" y="330" fill="#94A3B8" font-family="sans-serif" font-size="11">Over every 27.3-day month, Earth bobs up and down by ±6.7°.</text>
+    <text x="14" y="346" fill="#94A3B8" font-family="sans-serif" font-size="11">The inner half of the cyan loop gives active Direct-to-Earth</text>
+    <text x="14" y="362" fill="#94A3B8" font-family="sans-serif" font-size="11">comms; the outer half dips into the gray ridge (Comms Blackout).</text>
+  </g>
+</svg>
+

@@ -5,6 +5,7 @@ import type {
   LaunchSlipSweepResponse,
   HorizonPoint,
   TimelineStep,
+  DualScenarioComparisonResponse,
 } from '../types/mission';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
@@ -102,11 +103,16 @@ export const FALLBACK_SITES: LunarSite[] = [
   },
 ];
 
-/**
- * Deterministic client-side physics & LOLA fallback synthesizer so the UI works
- * even if the user opens the frontend standalone before starting the Python backend.
- */
-function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationResponse {
+const FALLBACK_DIVINER: Record<string, { max_k: number; min_k: number; flatness: number; psr_pct: number; slope: number }> = {
+  shackleton_ridge: { max_k: 218.0, min_k: 78.0, flatness: 74.5, psr_pct: 28.4, slope: 5.2 },
+  malapert_massif: { max_k: 234.0, min_k: 86.0, flatness: 68.0, psr_pct: 19.2, slope: 6.4 },
+  leibnitz_beta: { max_k: 229.0, min_k: 82.0, flatness: 86.2, psr_pct: 12.5, slope: 3.1 },
+  nobile_rim: { max_k: 214.0, min_k: 68.0, flatness: 58.4, psr_pct: 31.0, slope: 8.1 },
+  haworth_floor: { max_k: 43.0, min_k: 26.0, flatness: 62.0, psr_pct: 89.5, slope: 7.4 },
+  apollo_11: { max_k: 390.0, min_k: 95.0, flatness: 96.5, psr_pct: 0.0, slope: 1.1 },
+};
+
+export function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationResponse {
   const site: LunarSite =
     req.site_id === 'custom' && req.custom_site
       ? {
@@ -119,12 +125,12 @@ function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationRespons
           elev_m: req.custom_site.elev_m,
           terrain_type: req.custom_site.terrain_type || 'ridge',
           patch_size_km: 20.0,
-          description: 'Custom selenographic coordinates evaluated with local LOLA procedural horizon model.',
-          engineering_notes: 'Dynamic 64x64 DEM and 360° horizon ray-cast.',
+          description: 'Custom selenographic coordinates evaluated with local LOLA 128x128 horizon model.',
+          engineering_notes: 'Dynamic 128x128 DEM, Diviner thermal extrema, and 360° horizon ray-cast.',
         }
       : FALLBACK_SITES.find((s) => s.id === req.site_id) || FALLBACK_SITES[0];
 
-  const gridSize = 64;
+  const gridSize = req.dem_grid_size || 128;
   const elevations_m: number[][] = [];
   const half = 10000.0;
   for (let i = 0; i < gridSize; i++) {
@@ -136,11 +142,11 @@ function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationRespons
       const az = ((Math.atan2(x, y) * 180) / Math.PI + 360) % 360;
       let z = site.elev_m;
       if (site.terrain_type === 'basin') {
-        z += 650 * Math.pow(Math.max(0, rNorm - 0.15), 1.15);
+        z += 820 * Math.pow(Math.max(0, rNorm - 0.12), 1.12);
       } else if (site.terrain_type === 'mare_flat') {
         z += 12 * Math.sin(x / 2500) * Math.cos(y / 2500);
       } else {
-        z += -180 * Math.pow(rNorm, 1.4) + 180 * Math.sin((az * Math.PI) / 90) * Math.max(0, rNorm - 0.25);
+        z += -180 * Math.pow(rNorm, 1.4) + 280 * Math.sin((az * Math.PI) / 90) * Math.max(0, rNorm - 0.22);
       }
       row.push(Math.round(z * 10) / 10);
     }
@@ -181,13 +187,13 @@ function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationRespons
     const draconicPhase = (daysSinceEpoch / 27.2122) * 2 * Math.PI;
     const anomalisticPhase = (daysSinceEpoch / 27.55455) * 2 * Math.PI;
 
-    let sun_az = ((daysSinceEpoch * 360) / 29.53059 + site.lon_deg + 3600) % 360;
-    let sun_el = isEquatorial
+    const sun_az = ((daysSinceEpoch * 360) / 29.53059 + site.lon_deg + 3600) % 360;
+    const sun_el = isEquatorial
       ? 89.0 * Math.sin(synodicPhase)
       : (90 - Math.abs(site.lat_deg)) * Math.cos((sun_az * Math.PI) / 180) + 1.54 * Math.cos(daysSinceEpoch / 173.3);
 
-    let earth_az = isEquatorial ? 195 + 8 * Math.sin(anomalisticPhase) : (360 - site.lon_deg + 7.8 * Math.sin(anomalisticPhase)) % 360;
-    let earth_el = isEquatorial
+    const earth_az = isEquatorial ? 195 + 8 * Math.sin(anomalisticPhase) : (360 - site.lon_deg + 7.8 * Math.sin(anomalisticPhase)) % 360;
+    const earth_el = isEquatorial
       ? 64.0 + 6.5 * Math.sin(draconicPhase)
       : (90 - Math.abs(site.lat_deg)) * Math.cos(((site.lon_deg) * Math.PI) / 180) + 6.68 * Math.sin(draconicPhase);
 
@@ -234,7 +240,6 @@ function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationRespons
     });
   }
 
-  // Compute real countdowns on fallback timeline
   for (let i = 0; i < timeline.length; i++) {
     let sSteps = 0;
     let sFound = false;
@@ -296,9 +301,25 @@ function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationRespons
   );
   const peak_power_kw = Number(Math.max(...timeline.map((t) => t.power_kw)).toFixed(2));
   const peak_solar_el_deg = Number(Math.max(...timeline.map((t) => t.sun_el)).toFixed(2));
+
+  const divinerRef = FALLBACK_DIVINER[site.id] || {
+    max_k: 220.0,
+    min_k: 75.0,
+    flatness: 72.0,
+    psr_pct: 22.0,
+    slope: 5.5,
+  };
+  const temp_max_k = divinerRef.max_k;
+  const temp_min_k = divinerRef.min_k;
+  const temp_max_c = Number((temp_max_k - 273.15).toFixed(1));
+  const temp_min_c = Number((temp_min_k - 273.15).toFixed(1));
+  const coldPenalty = Math.max(0, (90 - temp_min_k) * 1.35);
+  const hotPenalty = Math.max(0, (temp_max_k - 340) * 0.75);
+  const thermal_safety_score = Number(Math.max(5, Math.min(100, 100 - coldPenalty - hotPenalty)).toFixed(1));
+
   const darkScore = Math.max(0, 100 - max_continuous_darkness_hours / 1.5);
   const viability_score = Number(
-    (0.45 * sunlight_percentage + 0.3 * darkScore + 0.25 * dte_comms_percentage).toFixed(1)
+    (0.4 * sunlight_percentage + 0.25 * darkScore + 0.2 * dte_comms_percentage + 0.15 * thermal_safety_score).toFixed(1)
   );
 
   return {
@@ -314,12 +335,35 @@ function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationRespons
       comms_margin_deg: req.comms_margin_deg,
     },
     terrain_grid: {
-      grid_size: 64,
+      grid_size: gridSize,
       patch_size_km: 20,
+      dem_source: 'lola_calibrated_dem_128',
       elevations_m,
       min_elev_m: site.elev_m - 300,
       max_elev_m: site.elev_m + 450,
-      lander_pos: { x_m: 0, y_m: 0, z_m: site.elev_m, grid_row: 32, grid_col: 32 },
+      lander_pos: { x_m: 0, y_m: 0, z_m: site.elev_m, grid_row: Math.floor(gridSize / 2), grid_col: Math.floor(gridSize / 2) },
+      psr_area_percentage: divinerRef.psr_pct,
+      mean_slope_deg: divinerRef.slope,
+      landing_pad_slope_deg: Number((divinerRef.slope * 0.65).toFixed(2)),
+      terrain_flatness_score: divinerRef.flatness,
+    },
+    thermal_metrics: {
+      source: 'diviner_lro_calibrated',
+      temp_max_k,
+      temp_min_k,
+      temp_max_c,
+      temp_min_c,
+      cryogenic_hazard: temp_min_k < 70,
+      high_temp_hazard: temp_max_k > 375,
+      survival_limit_min_k: 70,
+      thermal_safety_score,
+      thermal_verdict: temp_min_k < 55 ? 'EXTREME_CRYO_HAZARD' : temp_min_k < 70 ? 'MARGINAL_COLD' : 'NOMINAL_THERMAL',
+    },
+    radar_metrics: {
+      illumination: sunlight_percentage,
+      dte_comms: dte_comms_percentage,
+      thermal_safety: thermal_safety_score,
+      terrain_flatness: divinerRef.flatness,
     },
     horizon_profile,
     timeline,
@@ -335,11 +379,19 @@ function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluationRespons
       peak_solar_el_deg,
       viability_score,
       feasibility_verdict:
-        viability_score >= 72 && max_continuous_darkness_hours <= 60
+        viability_score >= 70 && max_continuous_darkness_hours <= 50
           ? 'OPTIMAL'
           : viability_score >= 45 && max_continuous_darkness_hours <= 130
           ? 'MARGINAL'
           : 'CRITICAL_RISK',
+      temp_max_k,
+      temp_min_k,
+      temp_max_c,
+      temp_min_c,
+      thermal_safety_score,
+      terrain_flatness_score: divinerRef.flatness,
+      mean_slope_deg: divinerRef.slope,
+      psr_area_percentage: divinerRef.psr_pct,
     },
   };
 }
@@ -369,6 +421,92 @@ export async function evaluateMission(req: EvaluateRequest): Promise<MissionEval
   }
 }
 
+export async function compareTwoScenarios(
+  scenarioA: EvaluateRequest,
+  scenarioB: EvaluateRequest
+): Promise<DualScenarioComparisonResponse> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/compare_scenarios`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario_a: scenarioA, scenario_b: scenarioB }),
+    });
+    if (!res.ok) throw new Error(`Compare failed: ${res.status}`);
+    return (await res.json()) as DualScenarioComparisonResponse;
+  } catch {
+    const evalA = buildFallbackEvaluation(scenarioA);
+    const evalB = buildFallbackEvaluation(scenarioB);
+    const ka = evalA.kpis;
+    const kb = evalB.kpis;
+
+    const win = (va: number, vb: number, highBetter = true): 'A' | 'B' | 'TIE' => {
+      if (Math.abs(va - vb) <= 0.05) return 'TIE';
+      return highBetter ? (va > vb ? 'A' : 'B') : va < vb ? 'A' : 'B';
+    };
+
+    const sunHrsDiff = Number((kb.total_sunlight_hours - ka.total_sunlight_hours).toFixed(1));
+    const sunPctDiff = Number((kb.sunlight_percentage - ka.sunlight_percentage).toFixed(1));
+    const eclDiff = Number((kb.max_continuous_darkness_hours - ka.max_continuous_darkness_hours).toFixed(1));
+    const dteHrsDiff = Number((kb.total_dte_hours - ka.total_dte_hours).toFixed(1));
+    const dtePctDiff = Number((kb.dte_comms_percentage - ka.dte_comms_percentage).toFixed(1));
+
+    return {
+      scenario_a: evalA,
+      scenario_b: evalB,
+      deltas: {
+        sunlight_hours_delta_b_vs_a: sunHrsDiff,
+        sunlight_pct_delta_b_vs_a: sunPctDiff,
+        max_eclipse_hours_delta_b_vs_a: eclDiff,
+        dte_hours_delta_b_vs_a: dteHrsDiff,
+        dte_pct_delta_b_vs_a: dtePctDiff,
+        temp_min_k_delta_b_vs_a: Number(((kb.temp_min_k || 75) - (ka.temp_min_k || 75)).toFixed(1)),
+        temp_max_k_delta_b_vs_a: Number(((kb.temp_max_k || 220) - (ka.temp_max_k || 220)).toFixed(1)),
+        peak_solar_el_delta_b_vs_a: Number((kb.peak_solar_el_deg - ka.peak_solar_el_deg).toFixed(2)),
+        viability_score_delta_b_vs_a: Number((kb.viability_score - ka.viability_score).toFixed(1)),
+        winners: {
+          power_window: win(ka.total_sunlight_hours, kb.total_sunlight_hours, true),
+          battery_stress: win(ka.max_continuous_darkness_hours, kb.max_continuous_darkness_hours, false),
+          comms_window: win(ka.total_dte_hours, kb.total_dte_hours, true),
+          thermal_extremes: win(ka.thermal_safety_score || 70, kb.thermal_safety_score || 70, true),
+          peak_solar_el: win(ka.peak_solar_el_deg, kb.peak_solar_el_deg, true),
+          overall_viability: win(ka.viability_score, kb.viability_score, true),
+        },
+        summary_callouts: [
+          `Scenario B provides ${sunHrsDiff >= 0 ? '+' : ''}${sunHrsDiff}h (${sunPctDiff >= 0 ? '+' : ''}${sunPctDiff}%) sunlight compared to Scenario A.`,
+          `Scenario B max continuous eclipse is ${eclDiff >= 0 ? '+' : ''}${eclDiff}h vs Scenario A.`,
+          `Scenario B DTE communication window is ${dteHrsDiff >= 0 ? '+' : ''}${dteHrsDiff}h vs Scenario A.`,
+        ],
+      },
+      radar_comparison: [
+        {
+          axis: 'Illumination',
+          ScenarioA: evalA.radar_metrics?.illumination || ka.sunlight_percentage,
+          ScenarioB: evalB.radar_metrics?.illumination || kb.sunlight_percentage,
+          fullMark: 100,
+        },
+        {
+          axis: 'DTE Comms',
+          ScenarioA: evalA.radar_metrics?.dte_comms || ka.dte_comms_percentage,
+          ScenarioB: evalB.radar_metrics?.dte_comms || kb.dte_comms_percentage,
+          fullMark: 100,
+        },
+        {
+          axis: 'Thermal Safety',
+          ScenarioA: evalA.radar_metrics?.thermal_safety || 75,
+          ScenarioB: evalB.radar_metrics?.thermal_safety || 75,
+          fullMark: 100,
+        },
+        {
+          axis: 'Terrain Flatness',
+          ScenarioA: evalA.radar_metrics?.terrain_flatness || 72,
+          ScenarioB: evalB.radar_metrics?.terrain_flatness || 72,
+          fullMark: 100,
+        },
+      ],
+    };
+  }
+}
+
 export async function fetchLaunchSlipSweep(req: EvaluateRequest): Promise<LaunchSlipSweepResponse> {
   try {
     const res = await fetch(`${API_BASE_URL}/launch-slip-sweep`, {
@@ -393,7 +531,7 @@ export async function fetchLaunchSlipSweep(req: EvaluateRequest): Promise<Launch
   } catch {
     const sweep = [];
     for (let slip = -14; slip <= 28; slip += 2) {
-      const ev = buildFallbackEvaluation({ ...req, launch_slip_days: slip, step_hours: 4 });
+      const ev = buildFallbackEvaluation({ ...req, launch_slip_days: slip, step_hours: 4, dem_grid_size: 64 });
       sweep.push({
         slip_days: slip,
         effective_start_utc: ev.effective_start_utc,

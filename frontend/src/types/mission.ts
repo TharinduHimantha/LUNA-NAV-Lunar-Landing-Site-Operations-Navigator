@@ -4,6 +4,8 @@ export type FeasibilityVerdict = 'OPTIMAL' | 'MARGINAL' | 'CRITICAL_RISK';
 
 export type PersonaMode = 'engineering' | 'educator';
 
+export type WorkspaceViewMode = 'compare' | 'single';
+
 export interface LunarSite {
   id: string;
   name: string;
@@ -36,6 +38,7 @@ export interface EvaluateRequest {
   array_type: SolarArrayType;
   array_area_m2: number;
   comms_margin_deg: number;
+  dem_grid_size?: number;
 }
 
 export interface HorizonPoint {
@@ -61,11 +64,34 @@ export interface TimelineStep {
   solar_irradiance_wm2: number;
   incidence_efficiency: number;
   power_kw: number;
+  local_temp_k?: number;
   joint_operational: boolean;
   sun_countdown_mode: 'UNTIL_SET' | 'UNTIL_RISE' | 'CONTINUOUS_VISIBLE' | 'CONTINUOUS_BLOCKED';
   hours_until_sun_transition: number;
   earth_countdown_mode: 'UNTIL_SET' | 'UNTIL_RISE' | 'CONTINUOUS_VISIBLE' | 'CONTINUOUS_BLOCKED';
   hours_until_earth_transition: number;
+}
+
+export interface ThermalMetrics {
+  source: string;
+  local_temp_k?: number;
+  local_temp_c?: number;
+  temp_max_k: number;
+  temp_min_k: number;
+  temp_max_c: number;
+  temp_min_c: number;
+  cryogenic_hazard: boolean;
+  high_temp_hazard: boolean;
+  survival_limit_min_k: number;
+  thermal_safety_score: number;
+  thermal_verdict: string;
+}
+
+export interface RadarMetrics {
+  illumination: number;
+  dte_comms: number;
+  thermal_safety: number;
+  terrain_flatness: number;
 }
 
 export interface MissionKPIs {
@@ -80,11 +106,21 @@ export interface MissionKPIs {
   peak_solar_el_deg: number;
   viability_score: number;
   feasibility_verdict: FeasibilityVerdict;
+  local_temp_k?: number;
+  temp_max_k?: number;
+  temp_min_k?: number;
+  temp_max_c?: number;
+  temp_min_c?: number;
+  thermal_safety_score?: number;
+  terrain_flatness_score?: number;
+  mean_slope_deg?: number;
+  psr_area_percentage?: number;
 }
 
 export interface TerrainGridData {
   grid_size: number;
   patch_size_km: number;
+  dem_source?: string;
   elevations_m: number[][];
   min_elev_m: number;
   max_elev_m: number;
@@ -95,6 +131,14 @@ export interface TerrainGridData {
     grid_row: number;
     grid_col: number;
   };
+  lroc_texture_url?: string;
+  lroc_psr_texture_url?: string;
+  lroc_texture_base64?: string;
+  lroc_psr_texture_base64?: string;
+  psr_area_percentage?: number;
+  mean_slope_deg?: number;
+  landing_pad_slope_deg?: number;
+  terrain_flatness_score?: number;
 }
 
 export interface MissionEvaluationResponse {
@@ -110,9 +154,47 @@ export interface MissionEvaluationResponse {
     comms_margin_deg: number;
   };
   terrain_grid: TerrainGridData;
+  local_temp_k?: number;
+  thermal_metrics?: ThermalMetrics;
+  radar_metrics?: RadarMetrics;
   horizon_profile: HorizonPoint[];
   timeline: TimelineStep[];
   kpis: MissionKPIs;
+}
+
+export interface ScenarioComparisonDeltas {
+  sunlight_hours_delta_b_vs_a: number;
+  sunlight_pct_delta_b_vs_a: number;
+  max_eclipse_hours_delta_b_vs_a: number;
+  dte_hours_delta_b_vs_a: number;
+  dte_pct_delta_b_vs_a: number;
+  temp_min_k_delta_b_vs_a: number;
+  temp_max_k_delta_b_vs_a: number;
+  peak_solar_el_delta_b_vs_a: number;
+  viability_score_delta_b_vs_a: number;
+  winners: {
+    power_window: 'A' | 'B' | 'TIE';
+    battery_stress: 'A' | 'B' | 'TIE';
+    comms_window: 'A' | 'B' | 'TIE';
+    thermal_extremes: 'A' | 'B' | 'TIE';
+    peak_solar_el: 'A' | 'B' | 'TIE';
+    overall_viability: 'A' | 'B' | 'TIE';
+  };
+  summary_callouts: string[];
+}
+
+export interface RadarComparisonAxisPoint {
+  axis: string;
+  ScenarioA: number;
+  ScenarioB: number;
+  fullMark: number;
+}
+
+export interface DualScenarioComparisonResponse {
+  scenario_a: MissionEvaluationResponse;
+  scenario_b: MissionEvaluationResponse;
+  deltas: ScenarioComparisonDeltas;
+  radar_comparison: RadarComparisonAxisPoint[];
 }
 
 export interface LaunchSlipSweepPoint {
@@ -138,4 +220,3 @@ export interface PinnedScenario {
   label: string;
   evaluation: MissionEvaluationResponse;
 }
-

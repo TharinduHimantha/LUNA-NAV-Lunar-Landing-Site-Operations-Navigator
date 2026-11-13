@@ -1,0 +1,115 @@
+# ==============================================================================
+# LUNA-NAV — Root .gitignore (FastAPI Backend + React/Vite/Three.js Frontend)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Python & FastAPI Backend
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+
+# Testing & type checking caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ------------------------------------------------------------------------------
+# 2. Astrodynamics Ephemeris & Planetary Dataset Caches
+# ------------------------------------------------------------------------------
+# Auto-downloaded JPL SPICE kernels (downloaded on startup via Skyfield)
+backend/.skyfield_cache/
+*.bsp
+
+# Runtime-generated local terrain texture patches (created on-the-fly by data_ingestion.py)
+backend/data/textures/
+
+# Large temporary uncropped global NASA GeoTIFFs (from fetch_nasa_data.py)
+backend/data/global_*.tif
+backend/data/global_*.tiff
+
+# Keep the cropped South Pole LOLA DEM and LROC visual maps tracked for out-of-the-box execution
+!backend/data/south_pole_dem.tif
+!backend/data/south_pole_visual.tif
+
+# Local SQLite databases / scratch caches
+*.db
+*.sqlite
+*.sqlite3
+
+# ------------------------------------------------------------------------------
+# 3. Node.js, React, Vite & TypeScript Frontend
+# ------------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+frontend/dist-ssr/
+.vite/
+frontend/.vite/
+*.tsbuildinfo
+frontend/*.tsbuildinfo
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------------------------------------------------------
+# 4. Environment Variables & Secrets
+# ------------------------------------------------------------------------------
+.env
+.env.*
+*.local
+!.env.example
+
+# ------------------------------------------------------------------------------
+# 5. IDEs, Editors & OS Metadata
+# ------------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS / Windows / Linux OS artifacts
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+

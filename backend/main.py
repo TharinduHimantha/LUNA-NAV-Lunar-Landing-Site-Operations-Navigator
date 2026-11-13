@@ -1,22 +1,25 @@
 """
-LUNA-NAV FastAPI Backend Application.
+LUNA-NAV FastAPI Backend Application (Phase 2).
 Exposes REST API endpoints for lunar landing site selection, topocentric Sun & Earth
-ephemeris evaluation, 360° LOLA horizon ray-casting, launch-slip sensitivity sweeps,
-and multi-site / multi-date trade-off comparisons.
+ephemeris evaluation, 128x128 LOLA DEM & LROC/Diviner dataset ingestion,
+head-to-head dual scenario comparison (`POST /api/compare_scenarios`),
+multi-site comparison (`POST /api/compare`), and launch-slip sensitivity sweeps.
 """
 
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from sites_catalog import CURATED_SITES
 from physics_engine import evaluate_mission_cached
+from data_ingestion import DATA_DIR
 
 app = FastAPI(
-    title="LUNA-NAV Mission Operations & Ephemeris API",
-    description="2026 NASA Space Apps Challenge — Lunar Landing Site & Operations Navigator",
-    version="2.0.0",
+    title="LUNA-NAV Mission Operations & Planetary Dataset API",
+    description="2026 NASA Space Apps Challenge — Phase 2 Real Dataset Integration & Comparison UX",
+    version="2.5.0",
 )
 
 app.add_middleware(
@@ -26,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount `/static/` route serving `backend/data/` (including cropped LROC visual textures)
+app.mount("/static", StaticFiles(directory=DATA_DIR), name="static")
 
 
 class CustomSiteInput(BaseModel):
@@ -46,6 +52,12 @@ class EvaluateRequest(BaseModel):
     array_type: str = Field(default="vertical_cylindrical")
     array_area_m2: float = Field(default=12.0, ge=1.0, le=500.0)
     comms_margin_deg: float = Field(default=1.0, ge=0.0, le=15.0)
+    dem_grid_size: int = Field(default=128, ge=32, le=128)
+
+
+class DualScenarioCompareRequest(BaseModel):
+    scenario_a: EvaluateRequest
+    scenario_b: EvaluateRequest
 
 
 class CompareScenarioItem(BaseModel):
@@ -96,12 +108,21 @@ def _run_eval(req: EvaluateRequest) -> Dict[str, Any]:
         array_type=req.array_type,
         array_area_m2=req.array_area_m2,
         comms_margin_deg=req.comms_margin_deg,
+        dem_grid_size=req.dem_grid_size,
     )
+
+
+def _winner(val_a: float, val_b: float, higher_is_better: bool = True, tol: float = 0.05) -> str:
+    if abs(val_a - val_b) <= tol:
+        return "TIE"
+    if higher_is_better:
+        return "A" if val_a > val_b else "B"
+    return "A" if val_a < val_b else "B"
 
 
 @app.get("/api/health")
 def health_check() -> Dict[str, str]:
-    return {"status": "nominal", "service": "LUNA-NAV Backend v2.0"}
+    return {"status": "nominal", "service": "LUNA-NAV Backend v2.5 (Phase 2 Real Datasets)"}
 
 
 @app.get("/api/sites")
@@ -113,6 +134,107 @@ def get_sites() -> Dict[str, Any]:
 def evaluate_site(req: EvaluateRequest) -> Dict[str, Any]:
     try:
         return _run_eval(req)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/compare_scenarios")
+def compare_two_scenarios(req: DualScenarioCompareRequest) -> Dict[str, Any]:
+    """
+    Phase 2 Head-to-Head Scenario Comparison Endpoint.
+    Evaluates Scenario A and Scenario B simultaneously and returns full 3D DEM + LROC + Diviner
+    payloads alongside delta metrics, winner flags, and normalized 4-axis Radar chart series.
+    """
+    try:
+        eval_a = _run_eval(req.scenario_a)
+        eval_b = _run_eval(req.scenario_b)
+
+        ka = eval_a["kpis"]
+        kb = eval_b["kpis"]
+
+        sun_hrs_diff = round(kb["total_sunlight_hours"] - ka["total_sunlight_hours"], 1)
+        sun_pct_diff = round(kb["sunlight_percentage"] - ka["sunlight_percentage"], 1)
+        eclipse_diff = round(kb["max_continuous_darkness_hours"] - ka["max_continuous_darkness_hours"], 1)
+        dte_hrs_diff = round(kb["total_dte_hours"] - ka["total_dte_hours"], 1)
+        dte_pct_diff = round(kb["dte_comms_percentage"] - ka["dte_comms_percentage"], 1)
+        tmin_diff_k = round(kb["temp_min_k"] - ka["temp_min_k"], 1)
+        tmax_diff_k = round(kb["temp_max_k"] - ka["temp_max_k"], 1)
+        peak_el_diff = round(kb["peak_solar_el_deg"] - ka["peak_solar_el_deg"], 2)
+        viability_diff = round(kb["viability_score"] - ka["viability_score"], 1)
+
+        deltas = {
+            "sunlight_hours_delta_b_vs_a": sun_hrs_diff,
+            "sunlight_pct_delta_b_vs_a": sun_pct_diff,
+            "max_eclipse_hours_delta_b_vs_a": eclipse_diff,
+            "dte_hours_delta_b_vs_a": dte_hrs_diff,
+            "dte_pct_delta_b_vs_a": dte_pct_diff,
+            "temp_min_k_delta_b_vs_a": tmin_diff_k,
+            "temp_max_k_delta_b_vs_a": tmax_diff_k,
+            "peak_solar_el_delta_b_vs_a": peak_el_diff,
+            "viability_score_delta_b_vs_a": viability_diff,
+            "winners": {
+                "power_window": _winner(ka["total_sunlight_hours"], kb["total_sunlight_hours"], True),
+                "battery_stress": _winner(
+                    ka["max_continuous_darkness_hours"],
+                    kb["max_continuous_darkness_hours"],
+                    False,
+                ),
+                "comms_window": _winner(ka["total_dte_hours"], kb["total_dte_hours"], True),
+                "thermal_extremes": _winner(
+                    ka["thermal_safety_score"], kb["thermal_safety_score"], True
+                ),
+                "peak_solar_el": _winner(ka["peak_solar_el_deg"], kb["peak_solar_el_deg"], True),
+                "overall_viability": _winner(ka["viability_score"], kb["viability_score"], True),
+            },
+            "summary_callouts": [
+                (
+                    f"Scenario B provides {'+' if sun_hrs_diff >= 0 else ''}{sun_hrs_diff}h "
+                    f"({'+' if sun_pct_diff >= 0 else ''}{sun_pct_diff}%) sunlight compared to Scenario A."
+                ),
+                (
+                    f"Scenario B max continuous eclipse is {'+' if eclipse_diff >= 0 else ''}{eclipse_diff}h "
+                    f"vs Scenario A ({kb['max_continuous_darkness_hours']}h vs {ka['max_continuous_darkness_hours']}h)."
+                ),
+                (
+                    f"Scenario B DTE communication window is {'+' if dte_hrs_diff >= 0 else ''}{dte_hrs_diff}h "
+                    f"({'+' if dte_pct_diff >= 0 else ''}{dte_pct_diff}%) vs Scenario A."
+                ),
+            ],
+        }
+
+        radar_comparison = [
+            {
+                "axis": "Illumination",
+                "ScenarioA": eval_a["radar_metrics"]["illumination"],
+                "ScenarioB": eval_b["radar_metrics"]["illumination"],
+                "fullMark": 100,
+            },
+            {
+                "axis": "DTE Comms",
+                "ScenarioA": eval_a["radar_metrics"]["dte_comms"],
+                "ScenarioB": eval_b["radar_metrics"]["dte_comms"],
+                "fullMark": 100,
+            },
+            {
+                "axis": "Thermal Safety",
+                "ScenarioA": eval_a["radar_metrics"]["thermal_safety"],
+                "ScenarioB": eval_b["radar_metrics"]["thermal_safety"],
+                "fullMark": 100,
+            },
+            {
+                "axis": "Terrain Flatness",
+                "ScenarioA": eval_a["radar_metrics"]["terrain_flatness"],
+                "ScenarioB": eval_b["radar_metrics"]["terrain_flatness"],
+                "fullMark": 100,
+            },
+        ]
+
+        return {
+            "scenario_a": eval_a,
+            "scenario_b": eval_b,
+            "deltas": deltas,
+            "radar_comparison": radar_comparison,
+        }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -131,6 +253,7 @@ def compare_scenarios(req: CompareRequest) -> Dict[str, Any]:
             array_type=item.array_type,
             array_area_m2=item.array_area_m2,
             comms_margin_deg=item.comms_margin_deg,
+            dem_grid_size=64,
         )
         data = _run_eval(eval_req)
         results.append({
@@ -141,11 +264,12 @@ def compare_scenarios(req: CompareRequest) -> Dict[str, Any]:
             "launch_slip_days": item.launch_slip_days,
             "hardware": data["hardware"],
             "kpis": data["kpis"],
+            "thermal_metrics": data["thermal_metrics"],
+            "radar_metrics": data["radar_metrics"],
             "horizon_profile": data["horizon_profile"],
             "timeline": data["timeline"],
         })
 
-    # Identify highest viability backup scenario
     best_scenario = max(results, key=lambda r: r["kpis"]["viability_score"]) if results else None
     return {
         "scenarios": results,
@@ -173,6 +297,7 @@ def launch_slip_sweep(req: LaunchSlipSweepRequest) -> Dict[str, Any]:
             array_type=req.array_type,
             array_area_m2=req.array_area_m2,
             comms_margin_deg=req.comms_margin_deg,
+            dem_grid_size=64,
         )
         kpis = res["kpis"]
         sweep_points.append({
@@ -192,4 +317,3 @@ def launch_slip_sweep(req: LaunchSlipSweepRequest) -> Dict[str, Any]:
         "base_start_utc": req.start_datetime_utc,
         "sweep": sweep_points,
     }
-
