@@ -16,6 +16,9 @@ from sites_catalog import CURATED_SITES
 from physics_engine import evaluate_mission_cached
 from data_ingestion import DATA_DIR
 
+from horizons_client import HorizonsError
+from lola_dem import LolaDemError
+
 app = FastAPI(
     title="LUNA-NAV Mission Operations & Planetary Dataset API",
     description="2026 NASA Space Apps Challenge — Phase 2 Real Dataset Integration & Comparison UX",
@@ -127,15 +130,28 @@ def health_check() -> Dict[str, str]:
 
 @app.get("/api/sites")
 def get_sites() -> Dict[str, Any]:
-    return {"sites": CURATED_SITES}
+    south_polar_sites = [
+        site
+        for site in CURATED_SITES
+        if -90.0 <= float(site["lat_deg"]) <= -80.0
+    ]
+    return {"sites": south_polar_sites}
 
 
 @app.post("/api/evaluate")
-def evaluate_site(req: EvaluateRequest) -> Dict[str, Any]:
+def evaluate_site(request: EvaluateRequest):
     try:
-        return _run_eval(req)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return _run_eval(request)
+    except (LolaDemError, HorizonsError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
 
 
 @app.post("/api/compare_scenarios")

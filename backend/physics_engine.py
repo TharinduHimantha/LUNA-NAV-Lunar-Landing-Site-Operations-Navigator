@@ -30,6 +30,10 @@ from data_ingestion import (
     read_diviner_thermal_metrics,
     extract_lroc_texture_and_psr_mask,
 )
+from horizons_client import (
+    HorizonsError,
+    fetch_sun_earth_ephemeris,
+)
 
 # Constants
 SOLAR_CONSTANT_WM2 = 1361.0
@@ -394,8 +398,11 @@ def evaluate_mission_cached(
     clean_iso = start_datetime_iso.replace("Z", "+00:00")
     try:
         base_dt = datetime.fromisoformat(clean_iso)
+
         if base_dt.tzinfo is None:
             base_dt = base_dt.replace(tzinfo=timezone.utc)
+        else:
+            base_dt = base_dt.astimezone(timezone.utc)
     except ValueError:
         base_dt = datetime(2026, 12, 1, 0, 0, 0, tzinfo=timezone.utc)
 
@@ -420,20 +427,34 @@ def evaluate_mission_cached(
         for i in range(num_steps)
     ]
 
-    ephem_list = compute_topocentric_ephemeris(
-        lat_deg=float(site["lat_deg"]),
-        lon_deg=float(site["lon_deg"]),
-        elev_m=float(site["elev_m"]),
-        timestamps_utc=timestamps_utc,
+    if not timestamps_utc:
+        raise RuntimeError("No evaluation timestamps were generated.")
+
+    ephem_list, horizons_source = fetch_sun_earth_ephemeris(
+        latitude_deg=float(site["lat_deg"]),
+        longitude_deg=float(site["lon_deg"]),
+        elevation_m=float(lander_pos["z_m"]),
+        start_dt=timestamps_utc[0],
+        stop_dt=timestamps_utc[-1],
+        step_hours=float(step_hours),
     )
+
+    if len(ephem_list) != len(timestamps_utc):
+        raise RuntimeError(
+            "JPL Horizons returned a different number of timestamps. "
+            f"Expected {len(timestamps_utc)}, received {len(ephem_list)}."
+        )
 
     timeline: List[Dict[str, Any]] = []
     sun_vis_flags: List[bool] = []
     earth_vis_flags: List[bool] = []
 
     for idx, (dt, eph) in enumerate(zip(timestamps_utc, ephem_list)):
-        s_az, s_el = eph["sun_az"], eph["sun_el"]
-        e_az, e_el = eph["earth_az"], eph["earth_el"]
+        s_az = round(float(eph["sun_azimuth_deg"]), 3)
+        s_el = round(float(eph["sun_elevation_deg"]), 3)
+
+        e_az = round(float(eph["earth_azimuth_deg"]), 3)
+        e_el = round(float(eph["earth_elevation_deg"]), 3)
 
         s_horiz = round(_interpolate_horizon(horizon_360, s_az), 3)
         e_horiz = round(_interpolate_horizon(horizon_360, e_az), 3)
@@ -538,7 +559,8 @@ def evaluate_mission_cached(
 
     return {
         "site": site,
-        "ephemeris_engine": _SKYFIELD_DATA["mode"],
+        "ephemeris_engine": "nasa_jpl_horizons",
+        "horizons_source_ephemeris": horizons_source,
         "effective_start_utc": effective_start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "duration_days": duration_days,
         "step_hours": step_hours,

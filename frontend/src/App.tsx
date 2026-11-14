@@ -15,7 +15,6 @@ import {
   fetchSites,
   evaluateMission,
   compareTwoScenarios,
-  fetchLaunchSlipSweep,
   FALLBACK_SITES,
 } from './api/client';
 import { HeaderBar } from './components/HeaderBar';
@@ -142,38 +141,10 @@ export function App() {
   ]);
 
   // Fetch Launch Slip Sensitivity Sweep for Primary Site A
+  // Automatic Horizons sweep disabled to avoid excessive API requests.
   useEffect(() => {
-    let active = true;
-    const req: EvaluateRequest = {
-      site_id: selectedSiteId,
-      custom_site: selectedSiteId === 'custom' ? customSite : null,
-      start_datetime_utc: `${startDateStr}T00:00:00Z`,
-      duration_days: durationDays,
-      step_hours: 4.0,
-      launch_slip_days: 0,
-      array_type: arrayType,
-      array_area_m2: arrayAreaM2,
-      comms_margin_deg: commsMarginDeg,
-    };
-
-    fetchLaunchSlipSweep(req).then((res) => {
-      if (active && res?.sweep) {
-        setSlipSweep(res.sweep);
-      }
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [
-    selectedSiteId,
-    customSite,
-    startDateStr,
-    durationDays,
-    arrayType,
-    arrayAreaM2,
-    commsMarginDeg,
-  ]);
+    setSlipSweep([]);
+  }, [selectedSiteId, startDateStr]);
 
   // Synchronized 60 FPS timeline playback loop
   useEffect(() => {
