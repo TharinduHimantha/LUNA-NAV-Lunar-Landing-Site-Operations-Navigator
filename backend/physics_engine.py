@@ -369,6 +369,7 @@ def evaluate_mission_cached(
     array_area_m2: float,
     comms_margin_deg: float,
     dem_grid_size: int = 128,
+    prefer_local_ephemeris: bool = False,
 ) -> Dict[str, Any]:
     """
     Phase 2 End-to-End Mission & Scientific Dataset Evaluator.
@@ -430,20 +431,44 @@ def evaluate_mission_cached(
     if not timestamps_utc:
         raise RuntimeError("No evaluation timestamps were generated.")
 
-    ephem_list, horizons_source = fetch_sun_earth_ephemeris(
-        latitude_deg=float(site["lat_deg"]),
-        longitude_deg=float(site["lon_deg"]),
-        elevation_m=float(lander_pos["z_m"]),
-        start_dt=timestamps_utc[0],
-        stop_dt=timestamps_utc[-1],
-        step_hours=float(step_hours),
-    )
+    ephemeris_engine_name = "nasa_jpl_horizons"
+    horizons_source = "local_skyfield_de421"
 
-    if len(ephem_list) != len(timestamps_utc):
-        raise RuntimeError(
-            "JPL Horizons returned a different number of timestamps. "
-            f"Expected {len(timestamps_utc)}, received {len(ephem_list)}."
+    try:
+        if prefer_local_ephemeris:
+            raise HorizonsError("Using fast local ephemeris for multi-point sweep.")
+        ephem_list, horizons_source = fetch_sun_earth_ephemeris(
+            latitude_deg=float(site["lat_deg"]),
+            longitude_deg=float(site["lon_deg"]),
+            elevation_m=float(lander_pos["z_m"]),
+            start_dt=timestamps_utc[0],
+            stop_dt=timestamps_utc[-1],
+            step_hours=float(step_hours),
         )
+        if len(ephem_list) != len(timestamps_utc):
+            raise HorizonsError(
+                "JPL Horizons returned a different number of timestamps. "
+                f"Expected {len(timestamps_utc)}, received {len(ephem_list)}."
+            )
+    except Exception:
+        local_ephem = compute_topocentric_ephemeris(
+            lat_deg=float(site["lat_deg"]),
+            lon_deg=float(site["lon_deg"]),
+            elev_m=float(lander_pos["z_m"]),
+            timestamps_utc=timestamps_utc,
+        )
+        ephem_list = [
+            {
+                "timestamp": dt,
+                "sun_azimuth_deg": row["sun_az"],
+                "sun_elevation_deg": row["sun_el"],
+                "earth_azimuth_deg": row["earth_az"],
+                "earth_elevation_deg": row["earth_el"],
+            }
+            for dt, row in zip(timestamps_utc, local_ephem)
+        ]
+        ephemeris_engine_name = _SKYFIELD_DATA.get("mode", "skyfield_de421")
+        horizons_source = f"local_fallback:{ephemeris_engine_name}"
 
     timeline: List[Dict[str, Any]] = []
     sun_vis_flags: List[bool] = []
@@ -559,7 +584,7 @@ def evaluate_mission_cached(
 
     return {
         "site": site,
-        "ephemeris_engine": "nasa_jpl_horizons",
+        "ephemeris_engine": ephemeris_engine_name,
         "horizons_source_ephemeris": horizons_source,
         "effective_start_utc": effective_start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "duration_days": duration_days,

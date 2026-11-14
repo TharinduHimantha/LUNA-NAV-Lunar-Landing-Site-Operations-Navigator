@@ -333,6 +333,31 @@ export const ScenarioCompareDashboard: React.FC<ScenarioCompareDashboardProps> =
             className="w-full cursor-pointer"
           />
 
+          {/* Operational Ribbon Color Legend */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[10px] font-mono text-gray-400 border-t border-gray-800/70">
+            <span className="text-gray-300 font-semibold">
+              OPS RIBBON LEGEND (CLICK ANY SEGMENT TO JUMP TO HOUR):
+            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="flex items-center gap-1 text-emerald-300">
+                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
+                Joint Ops (Power + DTE Comms)
+              </span>
+              <span className="flex items-center gap-1 text-amber-300">
+                <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" />
+                Sun Power Only (Earth Occluded)
+              </span>
+              <span className="flex items-center gap-1 text-sky-300">
+                <span className="w-2.5 h-2.5 rounded-sm bg-sky-400 inline-block" />
+                DTE Comms Only (Solar Eclipse)
+              </span>
+              <span className="flex items-center gap-1 text-red-300">
+                <span className="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block" />
+                Full Blackout (Survival Heaters)
+              </span>
+            </div>
+          </div>
+
           {/* Dual Operational Status Ribbons (Scenario A vs Scenario B) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
             <div>
@@ -792,6 +817,26 @@ export const ScenarioCompareDashboard: React.FC<ScenarioCompareDashboardProps> =
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* Engineering Decision Thresholds & Survival Legend */}
+          <div className="mt-3 pt-2.5 border-t border-gray-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] font-mono">
+            <div className="bg-[#0B0F19] border border-gray-800 rounded px-2 py-1">
+              <div className="text-gray-400">⚡ BATTERY SPEC</div>
+              <div className="text-emerald-300 font-bold">&le;50.0h Max Dark</div>
+            </div>
+            <div className="bg-[#0B0F19] border border-gray-800 rounded px-2 py-1">
+              <div className="text-gray-400">❄️ CRYO LIMIT</div>
+              <div className="text-indigo-300 font-bold">&ge;70K (-203°C)</div>
+            </div>
+            <div className="bg-[#0B0F19] border border-gray-800 rounded px-2 py-1">
+              <div className="text-gray-400">📡 DTE CLEARANCE</div>
+              <div className="text-sky-300 font-bold">&gt;+{commsMarginDeg}° Horizon</div>
+            </div>
+            <div className="bg-[#0B0F19] border border-gray-800 rounded px-2 py-1">
+              <div className="text-gray-400">🏆 VIABILITY</div>
+              <div className="text-amber-300 font-bold">&ge;70 Opt | &lt;45 Risk</div>
             </div>
           </div>
 

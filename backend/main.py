@@ -130,12 +130,7 @@ def health_check() -> Dict[str, str]:
 
 @app.get("/api/sites")
 def get_sites() -> Dict[str, Any]:
-    south_polar_sites = [
-        site
-        for site in CURATED_SITES
-        if -90.0 <= float(site["lat_deg"]) <= -80.0
-    ]
-    return {"sites": south_polar_sites}
+    return {"sites": CURATED_SITES}
 
 
 @app.post("/api/evaluate")
@@ -314,6 +309,7 @@ def launch_slip_sweep(req: LaunchSlipSweepRequest) -> Dict[str, Any]:
             array_area_m2=req.array_area_m2,
             comms_margin_deg=req.comms_margin_deg,
             dem_grid_size=64,
+            prefer_local_ephemeris=True,
         )
         kpis = res["kpis"]
         sweep_points.append({

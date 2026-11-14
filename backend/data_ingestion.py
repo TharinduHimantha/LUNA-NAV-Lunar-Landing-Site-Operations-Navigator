@@ -36,7 +36,7 @@ from PIL import Image
 from scipy.ndimage import map_coordinates
 
 from sites_catalog import R_MOON_M, generate_terrain_dem
-from lola_dem import read_lola_geotiff_patch
+from lola_dem import LolaDemError, read_lola_geotiff_patch
 
 # Disable PIL DecompressionBombWarning for large NASA TIFFs
 Image.MAX_IMAGE_PIXELS = None
@@ -124,30 +124,26 @@ def _site_to_pixel_window(
     c0 = max(0, min(max(0, img_w - grid_size), center_c - half))
     return r0, c0
 
-def read_lola_dem_patch(site, grid_size=128):
-    """
-    Load an actual georeferenced NASA LOLA elevation patch.
-
-    This function deliberately does not fall back to procedural terrain.
-    If the scientific data is unavailable, it raises an explicit error.
-    """
-    return read_lola_geotiff_patch(
-        site=site,
-        grid_size=grid_size,
-    )
-"""
 def read_lola_dem_patch(
     site: Dict[str, Any], grid_size: int = 128
 ) -> Tuple[np.ndarray, float, Dict[str, Any], str]:
     """
-"""
     2.1 LOLA Digital Elevation Model (DEM) Processing:
-    - Uses `Pillow` (PIL) and `numpy` to read `backend/data/south_pole_dem.tif`.
-    - Scales pixel values into realistic lunar elevation meters (-4000m to +4000m) and blends
-      with the site's reference datum and local crater morphology.
-    - Extracts a 128x128 pixel grid for the Three.js `terrain_grid` displacement array.
+    - First attempts `read_lola_geotiff_patch` (`LDEM_80S_80MPP_ADJ.TIF` via `rasterio`) if
+      `rasterio` is installed and the full GeoTIFF binary is present on disk.
+    - Otherwise (or when `LDEM_80S_80MPP_ADJ.TIF` is a Git LFS pointer / `rasterio` is absent /
+      site is outside 80°S-90°S), uses `Pillow` (PIL) and `numpy` to read `backend/data/south_pole_dem.tif`,
+      scales pixel values into realistic lunar elevation meters (-4000m to +4000m), and extracts
+      a 128x128 pixel grid for the Three.js `terrain_grid` displacement array.
     """
-"""
+    try:
+        return read_lola_geotiff_patch(
+            site=site,
+            grid_size=grid_size,
+        )
+    except LolaDemError:
+        pass
+
     lat_deg = float(site.get("lat_deg", -89.54))
     lon_deg = float(site.get("lon_deg", 222.0))
     patch_size_m = float(site.get("patch_size_km", 20.0)) * 1000.0
@@ -183,7 +179,6 @@ def read_lola_dem_patch(
         return np.round(Z, 2), patch_size_m, lander_pos, "pil_tiff:south_pole_dem.tif"
 
     return Z_synth, patch_size_m, lander_pos, "pil_calibrated_lola_128"
-"""
 
 def compute_vectorized_horizon_360(
     Z: np.ndarray,

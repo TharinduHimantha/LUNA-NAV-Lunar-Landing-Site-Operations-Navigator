@@ -5,11 +5,22 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import rasterio
-from rasterio.crs import CRS
-from rasterio.enums import Resampling
-from rasterio.transform import from_bounds
-from rasterio.vrt import WarpedVRT
+
+try:
+    import rasterio
+    from rasterio.crs import CRS
+    from rasterio.enums import Resampling
+    from rasterio.transform import from_bounds
+    from rasterio.vrt import WarpedVRT
+
+    HAS_RASTERIO = True
+except ImportError:
+    rasterio = None  # type: ignore[assignment]
+    CRS = None  # type: ignore[assignment]
+    Resampling = None  # type: ignore[assignment]
+    from_bounds = None  # type: ignore[assignment]
+    WarpedVRT = None  # type: ignore[assignment]
+    HAS_RASTERIO = False
 
 
 R_MOON_M = 1_737_400.0
@@ -71,11 +82,22 @@ def _read_cached_patch(
     longitude_deg: float,
     patch_size_m: float,
     grid_size: int,
-) -> tuple[np.ndarray, float, dict[str, float], str]:
+) -> tuple[np.ndarray, float, dict[str, Any], str]:
+    if not HAS_RASTERIO:
+        raise LolaDemError(
+            "Optional dependency 'rasterio' is not installed; falling back to PIL/NumPy TIFF reader."
+        )
+
     if not LOLA_DEM_PATH.exists():
         raise LolaDemError(
             "NASA LOLA DEM is missing. Download "
             "LDEM_80S_80MPP_ADJ.TIF into backend/data/lola/."
+        )
+
+    if LOLA_DEM_PATH.stat().st_size < 1024:
+        raise LolaDemError(
+            "LDEM_80S_80MPP_ADJ.TIF is a Git LFS pointer file (134 bytes). "
+            "Run 'git lfs pull' or use backend/data/south_pole_dem.tif."
         )
 
     if not -90.0 <= latitude_deg <= -80.0:
@@ -111,23 +133,28 @@ def _read_cached_patch(
         grid_size,
     )
 
-    with rasterio.open(LOLA_DEM_PATH) as source:
-        if source.crs is None:
-            raise LolaDemError(
-                "The LOLA GeoTIFF does not contain a readable CRS."
-            )
+    try:
+        with rasterio.open(LOLA_DEM_PATH) as source:
+            if source.crs is None:
+                raise LolaDemError(
+                    "The LOLA GeoTIFF does not contain a readable CRS."
+                )
 
-        with WarpedVRT(
-            source,
-            crs=local_crs,
-            transform=destination_transform,
-            width=grid_size,
-            height=grid_size,
-            resampling=Resampling.bilinear,
-            nodata=np.nan,
-            dtype="float64",
-        ) as vrt:
-            masked_elevation = vrt.read(1, masked=True)
+            with WarpedVRT(
+                source,
+                crs=local_crs,
+                transform=destination_transform,
+                width=grid_size,
+                height=grid_size,
+                resampling=Resampling.bilinear,
+                nodata=np.nan,
+                dtype="float64",
+            ) as vrt:
+                masked_elevation = vrt.read(1, masked=True)
+    except Exception as exc:
+        if isinstance(exc, LolaDemError):
+            raise
+        raise LolaDemError(f"Failed to read LOLA GeoTIFF via rasterio: {exc}") from exc
 
     elevation = np.asarray(
         masked_elevation.filled(np.nan),
@@ -169,6 +196,8 @@ def _read_cached_patch(
         "x_m": 0.0,
         "y_m": 0.0,
         "z_m": centre_elevation_m,
+        "grid_row": centre,
+        "grid_col": centre,
         "latitude_deg": float(latitude_deg),
         "longitude_deg": float(longitude_deg),
     }
@@ -184,7 +213,7 @@ def _read_cached_patch(
 def read_lola_geotiff_patch(
     site: dict[str, Any],
     grid_size: int = 128,
-) -> tuple[np.ndarray, float, dict[str, float], str]:
+) -> tuple[np.ndarray, float, dict[str, Any], str]:
     """
     Return a real georeferenced LOLA elevation patch.
 
@@ -195,7 +224,7 @@ def read_lola_geotiff_patch(
     longitude_deg = float(site["lon_deg"])
 
     patch_size_m = float(
-        site.get("dem_patch_size_m", 20_000.0)
+        site.get("dem_patch_size_m", site.get("patch_size_km", 20.0) * 1000.0)
     )
 
     return _read_cached_patch(

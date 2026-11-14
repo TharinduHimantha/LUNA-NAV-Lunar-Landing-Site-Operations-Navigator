@@ -366,11 +366,15 @@ export const PolarSkyChart: React.FC<PolarSkyChartProps> = ({
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between text-[10px] text-gray-400">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 text-[10px] text-gray-400">
+          <div className="flex flex-wrap items-center gap-2.5">
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-sm bg-slate-700 border border-slate-400 inline-block" />
               Terrain Mask H(Az)
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-0.5 border-b border-dashed border-sky-400 inline-block" />
+              +{commsMarginDeg}° DTE Margin
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-0.5 bg-amber-400 inline-block" />
@@ -381,11 +385,12 @@ export const PolarSkyChart: React.FC<PolarSkyChartProps> = ({
               Earth Libration Loop
             </span>
           </div>
-          {personaMode === 'educator' && (
-            <span className="text-amber-300/90 flex items-center gap-1">
-              <Eye className="w-3 h-3" /> Center = Higher Sky; Outer Edge = Occluded by Crater Walls
-            </span>
-          )}
+          <span className="text-amber-300/90 flex items-center gap-1 font-mono">
+            <Eye className="w-3 h-3 shrink-0" />
+            {personaMode === 'educator'
+              ? 'Center = Higher Sky; Outer Gray Wall = Blocked by Crater Rim'
+              : 'Inside Gray Mask = Line-of-Sight Clear | Outer Rim = Terrain Occluded'}
+          </span>
         </div>
       </div>
     </div>

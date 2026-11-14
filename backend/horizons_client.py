@@ -17,11 +17,11 @@ _HORIZONS_SESSION.mount(
     "https://",
     HTTPAdapter(
         max_retries=Retry(
-            total=4,
-            connect=4,
-            read=4,
-            status=4,
-            backoff_factor=1.0,
+            total=1,
+            connect=1,
+            read=1,
+            status=1,
+            backoff_factor=0.3,
             status_forcelist=(429, 500, 502, 503, 504),
             allowed_methods=frozenset({"GET"}),
             respect_retry_after_header=True,
@@ -161,7 +161,7 @@ def _fetch_target_cached(
             headers={
                 "User-Agent": "LUNA-NAV-Hackathon/1.0",
             },
-            timeout=30,
+            timeout=3.5,
         )
         response.raise_for_status()
     except requests.RequestException as exc:
