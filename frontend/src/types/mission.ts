@@ -4,7 +4,7 @@ export type FeasibilityVerdict = 'OPTIMAL' | 'MARGINAL' | 'CRITICAL_RISK';
 
 export type PersonaMode = 'engineering' | 'educator';
 
-export type WorkspaceViewMode = 'compare' | 'single';
+export type WorkspaceViewMode = 'explorer' | 'comparator' | 'trade_study' | 'guide';
 
 export interface LunarSite {
   id: string;

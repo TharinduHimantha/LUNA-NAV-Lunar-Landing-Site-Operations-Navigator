@@ -1,50 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* 1. NASA SVS / Moon Trek Dark-First Design Tokens */
 :root {
-  color-scheme: dark;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --bg-void: #05070b;
+  --bg-base: #080b12;
+  --bg-surface: #0b0f17;
+  --bg-elevated: #111827;
+  --glass-bg: rgba(9, 13, 22, 0.82);
+  --glass-bg-strong: rgba(7, 10, 18, 0.92);
+  --border-hairline: rgba(148, 163, 184, 0.16);
+  --border-active: rgba(56, 189, 248, 0.55);
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+
+  /* Restrained Primary Scientific Accent (Cyan) & Solar Secondary Accent (Amber) */
+  --accent-primary: #38bdf8;
+  --accent-primary-dim: rgba(56, 189, 248, 0.14);
+  --accent-solar: #f59e0b;
+  --accent-solar-dim: rgba(245, 158, 11, 0.14);
+
+  /* Semantic Status Colors Only */
+  --status-nominal: #10b981;
+  --status-warning: #f59e0b;
+  --status-critical: #f43f5e;
 }
 
-* {
-  box-sizing: border-box;
+html.light {
+  --bg-void: #e2e8f0;
+  --bg-base: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f8fafc;
+  --glass-bg: rgba(255, 255, 255, 0.88);
+  --glass-bg-strong: rgba(255, 255, 255, 0.96);
+  --border-hairline: rgba(15, 23, 42, 0.14);
+  --border-active: rgba(2, 132, 199, 0.6);
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  --accent-primary: #0284c7;
+  --accent-primary-dim: rgba(2, 132, 199, 0.12);
+  --accent-solar: #d97706;
+  --accent-solar-dim: rgba(217, 119, 6, 0.12);
 }
 
-body {
+/* 2. Typography & Tabular Numerals */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
-  background-color: #0B0F19;
-  color: #F3F4F6;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  overflow-x: hidden;
+  overflow: hidden;
+  background-color: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-#root {
-  min-height: 100vh;
-  width: 100%;
+.font-mono,
+code,
+pre,
+kbd,
+.tabular-nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Custom sleek mission-control scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.section-kicker {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-variant: small-caps;
+  color: var(--text-muted);
 }
 
-::-webkit-scrollbar-track {
-  background: #0B0F19;
+/* 3. Translucent Glass HUD Surface */
+.hud-panel {
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-hairline);
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.55);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #1F2937;
-  border-radius: 3px;
+.hud-panel-strong {
+  background-color: var(--glass-bg-strong);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border-hairline);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.65);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #374151;
+/* 4. Precision Range Sliders */
+input[type='range'].sci-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.24);
+  outline: none;
 }
 
-/* Range slider styling */
-input[type="range"] {
-  accent-color: #F59E0B;
+input[type='range'].sci-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 1.5px solid #05070b;
+  cursor: pointer;
+  transition: transform 140ms ease;
+}
+
+input[type='range'].sci-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* 5. Thin Scrollbars for Slide-Out Drawers */
+.drawer-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.drawer-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.drawer-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+}
+
+.drawer-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* 6. Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

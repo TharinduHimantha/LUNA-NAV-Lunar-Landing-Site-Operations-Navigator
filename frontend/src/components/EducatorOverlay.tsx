@@ -35,77 +35,79 @@ export const EducatorOverlay: React.FC<EducatorOverlayProps> = ({
   return (
     <section
       aria-label="Interactive Educator Physics Explainers"
-      className="mx-4 mt-3 bg-gradient-to-r from-amber-950/30 via-[#111827] to-sky-950/30 border border-amber-500/40 rounded-xl p-3.5 shadow-lg"
+      className="mx-4 mt-3 bg-gradient-to-r from-amber-950/30 via-[#0F172A] to-sky-950/30 border border-amber-500/40 rounded-xl p-4 shadow-xl"
     >
-      <div className="flex items-center justify-between mb-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <GraduationCap className="w-4 h-4 text-amber-400" />
           <h2 className="text-xs font-bold uppercase tracking-wider text-amber-300 font-mono">
-            Educator & Public Explorer Mode — Interactive Lunar South Pole Physics Guide
+            Educator &amp; Explorer Mode — Lunar South Pole Physics Reference
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-gray-400">
+        <span className="text-[11px] font-mono text-slate-400">
           Active Site: <strong className="text-white">{site.name}</strong> ({site.lat_deg}°)
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-xs">
         {/* Card 1: Grazing 360° Sun */}
-        <div className="bg-[#0B0F19]/90 border border-gray-800 rounded-lg p-3 flex flex-col justify-between">
+        <div className="bg-[#080C14]/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-1.5 font-bold text-amber-300 mb-1">
               <Sun className="w-3.5 h-3.5" />
-              1. Why the Sun Circles the Horizon
+              <span>1. Why the Sun Circles the Horizon</span>
             </div>
-            <p className="text-gray-300 text-[11px] leading-relaxed">
-              The Moon’s rotational axis is tilted by only <strong>1.54°</strong> to the ecliptic (compared to Earth’s 23.4°). At the South Pole (-89.5°), the Sun never rises high overhead—it skims horizontally around the compass (0°→360°) at grazing angles of <strong>-1.5° to +1.9°</strong>!
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              The Moon’s rotational axis is tilted by only <strong>1.54°</strong> to the ecliptic (compared to Earth’s 23.4°). At the South Pole (-89.5°), the Sun never rises high overhead—it skims horizontally around the compass (0°→360°) at grazing angles of <strong>-1.5° to +1.9°</strong>.
             </p>
           </div>
-          <div className="mt-2 pt-2 border-t border-gray-800/80 flex justify-between items-center">
+          <div className="mt-2.5 pt-2 border-t border-slate-800/80">
             <button
               type="button"
               onClick={() => onSelectSiteId('apollo_11')}
-              className="text-[11px] font-mono text-amber-400 hover:underline flex items-center gap-1"
+              className="text-[11px] font-mono text-amber-400 hover:text-amber-300 flex items-center gap-1 transition"
             >
-              Compare w/ Apollo 11 (Equator) <ArrowRight className="w-3 h-3" />
+              <span>Compare w/ Apollo 11 (Equator)</span>
+              <ArrowRight className="w-3 h-3" />
             </button>
           </div>
         </div>
 
         {/* Card 2: Optical Libration of Earth */}
-        <div className="bg-[#0B0F19]/90 border border-gray-800 rounded-lg p-3 flex flex-col justify-between">
+        <div className="bg-[#080C14]/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-1.5 font-bold text-sky-300 mb-1">
               <Orbit className="w-3.5 h-3.5" />
-              2. What is Earth Libration?
+              <span>2. What is Earth Libration?</span>
             </div>
-            <p className="text-gray-300 text-[11px] leading-relaxed">
-              Even though the Moon is tidally locked to Earth, its elliptical and inclined orbit causes Earth to weave an apparent figure-loop in the lunar sky (<strong>±6.7° latitude, ±7.9° longitude</strong>) every 27.3 days. At the South Pole, Earth bobs up and down behind mountains!
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              Although the Moon is tidally locked to Earth, its elliptical and inclined orbit causes Earth to trace an apparent loop in the lunar sky (<strong>±6.7° latitude, ±7.9° longitude</strong>) every 27.3 days. At the South Pole, Earth bobs above and below northern crater ridges.
             </p>
           </div>
-          <div className="mt-2 pt-2 border-t border-gray-800/80 flex justify-between items-center">
+          <div className="mt-2.5 pt-2 border-t border-slate-800/80">
             <button
               type="button"
               onClick={() => onSelectSiteId('malapert_massif')}
-              className="text-[11px] font-mono text-sky-400 hover:underline flex items-center gap-1"
+              className="text-[11px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-1 transition"
             >
-              View Malapert Relay Peak <ArrowRight className="w-3 h-3" />
+              <span>Inspect Malapert Relay Peak</span>
+              <ArrowRight className="w-3 h-3" />
             </button>
           </div>
         </div>
 
         {/* Card 3: Vertical vs Flat Solar Panels */}
-        <div className="bg-[#0B0F19]/90 border border-gray-800 rounded-lg p-3 flex flex-col justify-between">
+        <div className="bg-[#080C14]/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-1.5 font-bold text-emerald-300 mb-1">
               <Zap className="w-3.5 h-3.5" />
-              3. Why Flat Solar Panels Fail at 89°S
+              <span>3. Why Flat Solar Panels Fail at 89°S</span>
             </div>
-            <p className="text-gray-300 text-[11px] leading-relaxed">
-              A flat horizontal deck panel collects power proportional to <code>sin(El)</code>. At a 1.5° grazing Sun angle, <code>sin(1.5°) = 0.026</code> (97% power loss!). A <strong>Vertical 360° Cylinder</strong> intercepts grazing rays at <code>cos(1.5°) = 0.999</code>!
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              A flat horizontal deck collects power proportional to <code>sin(El)</code>. At a 1.5° grazing Sun angle, <code>sin(1.5°) = 0.026</code> (over 97% cosine loss). A <strong>Vertical 360° Cylinder</strong> intercepts grazing rays at <code>cos(1.5°) = 0.999</code>.
             </p>
           </div>
-          <div className="mt-2 pt-2 border-t border-gray-800/80 flex justify-between items-center">
+          <div className="mt-2.5 pt-2 border-t border-slate-800/80">
             <button
               type="button"
               onClick={() =>
@@ -113,32 +115,35 @@ export const EducatorOverlay: React.FC<EducatorOverlayProps> = ({
                   arrayType === 'horizontal_deck' ? 'vertical_cylindrical' : 'horizontal_deck'
                 )
               }
-              className="text-[11px] font-mono text-emerald-400 hover:underline flex items-center gap-1"
+              className="text-[11px] font-mono text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
             >
-              Toggle {arrayType === 'horizontal_deck' ? 'Vertical Mast' : 'Flat Deck'} to Test{' '}
+              <span>
+                Switch to {arrayType === 'horizontal_deck' ? 'Vertical Mast' : 'Flat Deck'}
+              </span>
               <ArrowRight className="w-3 h-3" />
             </button>
           </div>
         </div>
 
         {/* Card 4: Peaks of Eternal Light vs Cold Traps */}
-        <div className="bg-[#0B0F19]/90 border border-gray-800 rounded-lg p-3 flex flex-col justify-between">
+        <div className="bg-[#080C14]/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-1.5 font-bold text-rose-300 mb-1">
               <Mountain className="w-3.5 h-3.5" />
-              4. Peaks of Light vs. Cold Traps
+              <span>4. Peaks of Light vs. Cold Traps</span>
             </div>
-            <p className="text-gray-300 text-[11px] leading-relaxed">
-              Adjacent to sunlit ridges like Shackleton (+2,150 m) lie deep impact basins like <strong>Haworth Crater (-1,800 m)</strong> whose 4°–6° walls block the low Sun permanently, creating cryogenic cold traps that preserve ancient water ice.
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              Adjacent to sunlit ridges like Shackleton (+2,150 m) lie deep impact basins like <strong>Haworth Crater (-1,800 m)</strong> whose 4°–6° walls block the low Sun permanently, creating cryogenic cold traps (&lt;45 K) that preserve ancient water ice.
             </p>
           </div>
-          <div className="mt-2 pt-2 border-t border-gray-800/80 flex justify-between items-center">
+          <div className="mt-2.5 pt-2 border-t border-slate-800/80">
             <button
               type="button"
               onClick={() => onSelectSiteId('haworth_floor')}
-              className="text-[11px] font-mono text-rose-400 hover:underline flex items-center gap-1"
+              className="text-[11px] font-mono text-rose-400 hover:text-rose-300 flex items-center gap-1 transition"
             >
-              Jump Inside Haworth PSR <ArrowRight className="w-3 h-3" />
+              <span>Jump Inside Haworth PSR</span>
+              <ArrowRight className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -163,28 +168,28 @@ export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> =
 
   const steps = [
     {
-      title: 'Step 1: Evaluate the Artemis III Primary Candidate (Shackleton Ridge)',
-      badge: 'SITE SELECTION & 3D DEM',
-      body: 'We begin at Shackleton Connecting Ridge (-89.54°S, +2,150m elevation). Because this narrow knife-edge ridge towers above surrounding craters, its local horizon mask H(Az) is under 1.8° across most compass directions—allowing near-continuous solar power during the southern lunar summer.',
-      actionLabel: 'Load Shackleton Ridge (Dec 1, 2026)',
+      title: 'Step 1: Compare Artemis III Candidates Side-by-Side',
+      badge: 'TAB 2 • SITE COMPARATOR',
+      body: 'In the Site Comparator tab, we evaluate Shackleton Connecting Ridge (-89.54°S, +2,150 m) directly against Malapert Massif. The Executive Verdict banner synthesizes solar power hours, Direct-to-Earth link uptime, and battery survival margins.',
+      actionLabel: 'Open Comparator (Shackleton vs Malapert)',
     },
     {
-      title: 'Step 2: Read the 360° Polar Azimuthal Sky-Chart & Grazing Shadows',
-      badge: 'GEOMETRIC HORIZON RAY-CASTER',
-      body: 'Look at the 360° Polar Azimuthal Radar on the right and the 3D Terrain Viewport on the left. The gold circle traces the Sun’s 360° path around the horizon, while the cyan loop shows Earth’s 27.3-day optical libration wobble above and below the northern crater ridge.',
-      actionLabel: 'Animate Mission Scrubber & Inspect Radar',
+      title: 'Step 2: Inspect 3D Grazing Shadows & 360° Polar Radar',
+      badge: 'TAB 1 • MISSION EXPLORER',
+      body: 'Switch to Mission Explorer to inspect the 128×128 LOLA terrain mesh and floating glassmorphism HUD. Click anywhere along the gold solar track on the 360° Polar Horizon Radar to jump straight to that mission hour.',
+      actionLabel: 'Open Explorer & Animate Shadows',
     },
     {
-      title: 'Step 3: Test Solar Array Geometry (Vertical Cylinder vs. Flat Deck)',
+      title: 'Step 3: Test Solar Array Geometry (Vertical Mast vs. Flat Deck)',
       badge: 'HARDWARE POWER MODEL',
-      body: 'Watch the "Array Power" KPI card when we switch from a Vertical Cylindrical Mast (cos El) to a traditional Horizontal Flat Deck (sin El). At a 1.5° grazing polar Sun angle, a flat deck loses >96% of its output, dropping from ~4.5 kW to ~0.12 kW!',
-      actionLabel: 'Test Hardware Array Geometry Impact',
+      body: 'Watch the Array Power telemetry card when toggling from a Vertical Cylindrical Mast (cos El) to a Horizontal Flat Deck (sin El). At a 1.5° grazing polar Sun angle, a flat deck loses over 96% of its electrical output.',
+      actionLabel: 'Toggle Array Geometry Live',
     },
     {
-      title: 'Step 4: Simulate a Launch Slip & Compare Backup Sites',
-      badge: 'LAUNCH SLIP & TRADE-OFF MATRIX',
-      body: 'What if your rocket launch slips by 10 days on a rugged rim like Nobile Crater? Use the Launch Schedule Slip slider (-14d to +28d) to spot "schedule cliffs" where eclipse duration exceeds the lander’s 50-hour battery limit, and use the 4-Site Trade-Off Matrix to pick the optimal backup site.',
-      actionLabel: 'Load 4-Site Artemis Trade Study Preset',
+      title: 'Step 4: Simulate Launch Slips & Rank 4 Backup Sites',
+      badge: 'TAB 3 • LAUNCH WINDOW & TRADE STUDY',
+      body: 'Open the Launch Window & Trade Study tab to drag the Launch Schedule Slip slider (-14d to +28d), detect schedule cliffs where darkness exceeds the 50-hour battery survival rule, and rank up to 4 pinned candidates.',
+      actionLabel: 'Load 4-Site Artemis Trade Study',
     },
   ];
 
@@ -192,15 +197,19 @@ export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> =
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#111827] border border-amber-500/50 rounded-2xl max-w-xl w-full p-5 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+      <div className="bg-[#0F172A] border border-amber-500/50 rounded-2xl max-w-xl w-full p-5 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-400" />
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-300">
-              Interactive Mission Planner Walkthrough ({step + 1} / {steps.length})
+              Guided Mission Walkthrough ({step + 1} / {steps.length})
             </span>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -210,30 +219,31 @@ export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> =
             {cur.badge}
           </span>
           <h3 className="text-base font-bold text-white">{cur.title}</h3>
-          <p className="text-xs text-gray-300 leading-relaxed">{cur.body}</p>
+          <p className="text-xs text-slate-300 leading-relaxed">{cur.body}</p>
         </div>
 
-        <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3 flex items-center justify-between">
-          <span className="text-xs text-gray-400">Apply live interactive action to dashboard:</span>
+        <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-slate-400">Apply live action to workspace:</span>
           <button
             type="button"
             onClick={() => onApplyStepAction(step)}
             className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold transition flex items-center gap-1.5"
           >
             <CheckCircle className="w-3.5 h-3.5" />
-            {cur.actionLabel}
+            <span>{cur.actionLabel}</span>
           </button>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-gray-800">
+        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
           <div className="flex gap-1.5">
             {steps.map((_, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setStep(idx)}
+                aria-label={`Jump to tutorial step ${idx + 1}`}
                 className={`w-2.5 h-2.5 rounded-full transition ${
-                  idx === step ? 'bg-amber-400 scale-110' : 'bg-gray-700'
+                  idx === step ? 'bg-amber-400 scale-110' : 'bg-slate-700'
                 }`}
               />
             ))}
@@ -244,7 +254,7 @@ export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> =
               <button
                 type="button"
                 onClick={() => setStep(step - 1)}
-                className="px-3 py-1.5 rounded-lg bg-gray-800 text-xs text-gray-300 hover:text-white"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs text-slate-300 hover:text-white transition"
               >
                 Previous
               </button>
@@ -267,9 +277,9 @@ export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> =
                   onApplyStepAction(step);
                   onClose();
                 }}
-                className="px-4 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition"
+                className="px-4 py-1.5 rounded-lg bg-emerald-400 text-slate-950 font-bold text-xs hover:bg-emerald-300 transition"
               >
-                Finish & Explore
+                Finish &amp; Explore
               </button>
             )}
           </div>
@@ -293,38 +303,42 @@ export const OperationsManualModal: React.FC<OperationsManualModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#111827] border border-gray-700 rounded-2xl max-w-4xl w-full max-h-[88vh] flex flex-col shadow-2xl">
+      <div className="bg-[#0F172A] border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[88vh] flex flex-col shadow-2xl">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-800">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800">
           <div className="flex items-center gap-2.5">
             <BookOpen className="w-5 h-5 text-sky-400" />
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider text-white font-mono">
-                LUNA-NAV // User Guide, Mission Operations & Technical Engineering Manual
+                LUNA-NAV // Mission Operations &amp; Technical Engineering Manual
               </h2>
-              <p className="text-[11px] text-gray-400">
-                Complete Reference Documentation for Mission Planners, Engineers, and Educators
+              <p className="text-[11px] text-slate-400">
+                Reference Documentation for Flight Planners, Systems Engineers, and Educators
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-gray-800 bg-[#0B0F19] px-5 pt-2 gap-2">
+        <div className="flex flex-wrap border-b border-slate-800 bg-[#080C14] px-5 pt-2 gap-2">
           <button
             type="button"
             onClick={() => setTab('user')}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold border-b-2 transition ${
               tab === 'user'
                 ? 'border-amber-400 text-amber-300'
-                : 'border-transparent text-gray-400 hover:text-white'
+                : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            1. User Guide & Interface Walkthrough
+            <span>1. Workspace &amp; Interface Guide</span>
           </button>
           <button
             type="button"
@@ -332,11 +346,11 @@ export const OperationsManualModal: React.FC<OperationsManualModalProps> = ({
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold border-b-2 transition ${
               tab === 'ops'
                 ? 'border-sky-400 text-sky-300'
-                : 'border-transparent text-gray-400 hover:text-white'
+                : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
-            2. Flight Operations & Decision Playbook
+            <span>2. Flight Operations Playbook</span>
           </button>
           <button
             type="button"
@@ -344,59 +358,79 @@ export const OperationsManualModal: React.FC<OperationsManualModalProps> = ({
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold border-b-2 transition ${
               tab === 'tech'
                 ? 'border-emerald-400 text-emerald-300'
-                : 'border-transparent text-gray-400 hover:text-white'
+                : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
             <Cpu className="w-3.5 h-3.5" />
-            3. Astrodynamics & Technical Architecture
+            <span>3. Astrodynamics &amp; Architecture</span>
           </button>
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-5 overflow-y-auto space-y-4 text-xs text-gray-300 leading-relaxed">
+        <div className="p-5 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed">
           {tab === 'user' && (
             <div className="space-y-4">
-              <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-4 space-y-2">
+              <div className="bg-[#080C14] border border-slate-800 rounded-xl p-4 space-y-2">
                 <h3 className="text-sm font-bold text-amber-300 font-mono">
-                  Welcome to LUNA-NAV (Lunar Landing Site & Operations Navigator)
+                  LUNA-NAV 4-Tab Mission Operations Suite
                 </h3>
                 <p>
-                  LUNA-NAV is an interactive full-stack decision-support tool built for the <strong>2026 NASA Space Apps Challenge</strong>. It enables mission planners, aerospace engineers, educators, and students to evaluate how local lunar topography interacts with topocentric Sun and Earth trajectories to govern <strong>Solar Electrical Power</strong> and <strong>Direct-to-Earth (DTE) Communications</strong>.
+                  LUNA-NAV evaluates how local lunar topography interacts with topocentric Sun and Earth trajectories to govern <strong>Solar Electrical Power</strong>, <strong>Battery Eclipse Survival</strong>, and <strong>Direct-to-Earth (DTE) Communications</strong>.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
-                  <h4 className="font-bold text-white font-mono">Module A: Scenario & Hardware Bar</h4>
-                  <ul className="list-disc list-inside space-y-1 text-gray-300">
-                    <li><strong>Site Selector:</strong> Choose from 6 scientifically calibrated LOLA sites (Shackleton Ridge, Malapert Massif, Leibnitz Beta, Nobile Rim, Haworth Cold Trap, Apollo 11) or click <em>Custom Coordinates</em> to pick any location on the South Pole map.</li>
-                    <li><strong>Landing Date & Duration:</strong> Pick any UTC landing date and evaluate 14-day, 30-day (1 full synodic lunar day), or 60-day surface stays.</li>
-                    <li><strong>Hardware Config:</strong> Select Solar Array Geometry (Vertical 360° Cylinder, Dual-Axis Tracking, or Horizontal Flat Deck), Array Area (m²), and Antenna Multipath Clearance Margin (°).</li>
+                <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <h4 className="font-bold text-white font-mono">1. Mission Explorer (Tab 1)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-slate-300">
+                    <li>
+                      <strong>3D Terrain &amp; Floating HUD:</strong> Scrubbing the global transport dock updates directional grazing shadows across the 128×128 LOLA DEM mesh. Use top-right HUD pills to toggle PSR cold traps or switch between Orbit and Horizon camera views.
+                    </li>
+                    <li>
+                      <strong>360° Polar Horizon Radar:</strong> Click anywhere along the gold solar trajectory to scrub directly to that mission hour.
+                    </li>
                   </ul>
                 </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
-                  <h4 className="font-bold text-white font-mono">Module B: Real-Time KPI & Countdown Strip</h4>
-                  <ul className="list-disc list-inside space-y-1 text-gray-300">
-                    <li><strong>Solar Tracking & Sunset Countdown:</strong> Displays instantaneous Sun Elevation, clearance above the crater rim, and live countdown hours until Sunset or Sunrise.</li>
-                    <li><strong>Earth DTE Link & Countdown:</strong> Displays Earth Elevation, optical libration clearance, and hours until Earthset or Earthrise.</li>
-                    <li><strong>Battery Stress (Max Continuous Eclipse):</strong> Flags in crimson if any continuous shadow period exceeds the lander's 50.0-hour battery limit.</li>
+                <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <h4 className="font-bold text-white font-mono">2. Site Comparator (Tab 2)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-slate-300">
+                    <li>
+                      <strong>Dual Synchronized Viewports:</strong> Evaluates Scenario A (Gold) and Scenario B (Cyan) side-by-side at identical Mission Elapsed Time (MET).
+                    </li>
+                    <li>
+                      <strong>Executive Verdict &amp; Delta Table:</strong> Automatically identifies category winners and flags battery or cryogenic flight-rule violations.
+                    </li>
                   </ul>
                 </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
-                  <h4 className="font-bold text-white font-mono">Module C: 3D Lunar Terrain & Shadow Simulator</h4>
-                  <ul className="list-disc list-inside space-y-1 text-gray-300">
-                    <li><strong>Real-Time Grazing Shadows:</strong> Scrubbing the timeline moves the directional Sun light to exact topocentric <code>(Az, El)</code> angles, casting razor-long shadows across the 64×64 LOLA DEM mesh.</li>
-                    <li><strong>Camera Modes:</strong> Switch between <em>Orbital Tactical View</em> (bird's-eye) and <em>Lander Horizon View</em> (surface perspective).</li>
+                <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <h4 className="font-bold text-white font-mono">3. Launch Window &amp; Trade Study (Tab 3)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-slate-300">
+                    <li>
+                      <strong>Launch Slip Simulator:</strong> Test launch delays from -14d to +28d to spot schedule cliffs.
+                    </li>
+                    <li>
+                      <strong>4-Scenario Pinboard:</strong> Pin up to 4 candidate configurations or load the Artemis 4-Site Reference Trade Study.
+                    </li>
                   </ul>
                 </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
-                  <h4 className="font-bold text-white font-mono">Module D & E: 360° Polar Radar & Scrubber Dock</h4>
-                  <ul className="list-disc list-inside space-y-1 text-gray-300">
-                    <li><strong>360° Polar Azimuthal Sky-Chart:</strong> Plots the gray 360° mountain skyline <code>H(Az)</code> against the gold 360° Sun track and cyan Earth libration ellipse.</li>
-                    <li><strong>Launch Slip Simulator (-14d to +28d):</strong> Drag the slip slider to test rocket launch delays and spot "schedule cliffs."</li>
+                <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <h4 className="font-bold text-white font-mono">Keyboard Shortcuts</h4>
+                  <ul className="list-disc list-inside space-y-1 text-slate-300 font-mono text-[11px]">
+                    <li>
+                      <strong>1 / 2 / 3 / 4:</strong> Switch workspace tabs
+                    </li>
+                    <li>
+                      <strong>Space:</strong> Play / Pause timeline playback
+                    </li>
+                    <li>
+                      <strong>Left / Right Arrow:</strong> Step backward / forward
+                    </li>
+                    <li>
+                      <strong>R:</strong> Reset timeline to Hour 0
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -404,93 +438,92 @@ export const OperationsManualModal: React.FC<OperationsManualModalProps> = ({
           )}
 
           {tab === 'ops' && (
-            <div className="space-y-4">
-              <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-4 space-y-2">
+            <div className="space-y-3">
+              <div className="bg-[#080C14] border border-slate-800 rounded-xl p-4 space-y-2">
                 <h3 className="text-sm font-bold text-sky-300 font-mono">
-                  Mission Flight Rules & Operational Decision Playbook
+                  Mission Flight Rules &amp; Operational Decision Playbook
                 </h3>
                 <p>
-                  Use these operational workflows during pre-mission site selection, launch window analysis, and contingency launch-slip replanning:
+                  Apply these standard flight-rule checks during pre-mission site selection, launch window sizing, and contingency replanning:
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5">
-                  <h4 className="font-bold text-amber-300 font-mono mb-1">
-                    Workflow 1: Evaluating Battery Survival Across Eclipse Windows
-                  </h4>
-                  <p>
-                    1. Select your candidate site and target landing date.<br />
-                    2. Check Card 5 (<strong>Max Eclipse</strong>): Typical commercial (CLPS) and crewed landers carry 40–50 hours of rechargeable lithium-ion battery capacity.<br />
-                    3. Look at the <strong>Operational Status Ribbon</strong> (Track 4): Red segments indicate full blackout, while Cyan segments indicate DTE comms during solar eclipse (high battery drain). Click any red segment to inspect which mountain peak on the 360° Polar Sky-Chart is blocking the Sun.
-                  </p>
-                </div>
+              <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5">
+                <h4 className="font-bold text-amber-300 font-mono mb-1">
+                  Rule 1: Battery Survival Across Continuous Eclipse (&le;50.0h)
+                </h4>
+                <p>
+                  Standard CLPS and crewed lunar landers carry 40–50 hours of rechargeable battery survival capacity. Inspect the <strong>Max Eclipse</strong> KPI card and click any crimson segment in the Operational Windows ribbon to pinpoint which crater wall blocks the Sun.
+                </p>
+              </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5">
-                  <h4 className="font-bold text-sky-300 font-mono mb-1">
-                    Workflow 2: Launch Delay ("Schedule Cliff") Contingency Analysis
-                  </h4>
-                  <p>
-                    1. In the bottom dock, inspect the <strong>Schedule Cliff Sensitivity Curve (-14d to +28d)</strong>.<br />
-                    2. Drag the <strong>Launch Schedule Slip Simulator</strong> slider to match a proposed launch scrub (e.g., +8 days).<br />
-                    3. If the primary site drops from <code>OPTIMAL</code> to <code>MARGINAL</code> or <code>CRITICAL RISK</code>, click <strong>Pin to Trade-Off Matrix</strong> and compare against backup sites (such as Malapert Massif or Shackleton Ridge) on the delayed date.
-                  </p>
-                </div>
+              <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5">
+                <h4 className="font-bold text-sky-300 font-mono mb-1">
+                  Rule 2: Launch Delay (&ldquo;Schedule Cliff&rdquo;) Contingency
+                </h4>
+                <p>
+                  If a launch slip pushes your primary site past its seasonal illumination window into a &gt;50h eclipse, switch to <strong>Site Comparator</strong> or <strong>Launch Window &amp; Trade Study</strong> to evaluate backup peaks such as Malapert Massif or Shackleton Ridge on the slipped date.
+                </p>
+              </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5">
-                  <h4 className="font-bold text-emerald-300 font-mono mb-1">
-                    Workflow 3: Direct-to-Earth (DTE) vs. Orbital Relay Sizing
-                  </h4>
-                  <p>
-                    Because Earth’s optical libration causes it to bob between -7° and +7° selenographic latitude every 27.3 days, sites on the far side of local ridges experience periodic 6-to-12 day DTE blackouts. Increase the <strong>Antenna Clearance Margin</strong> in the Hardware popover (from 1.0° to 2.5°) to verify X-band/Ka-band link resilience against regolith multipath interference.
-                  </p>
-                </div>
+              <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5">
+                <h4 className="font-bold text-emerald-300 font-mono mb-1">
+                  Rule 3: Direct-to-Earth (DTE) Multipath Clearance
+                </h4>
+                <p>
+                  Because Earth oscillates ±6.7° in selenographic latitude over its 27.3-day nodical cycle, sites behind northern ridges experience periodic DTE blackouts. Adjust the <strong>DTE Antenna Margin</strong> in the Hardware popover (from 1.0° to 2.5°) to verify X/Ka-band link resilience.
+                </p>
               </div>
             </div>
           )}
 
           {tab === 'tech' && (
             <div className="space-y-4">
-              <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-4 space-y-2">
+              <div className="bg-[#080C14] border border-slate-800 rounded-xl p-4 space-y-2">
                 <h3 className="text-sm font-bold text-emerald-300 font-mono">
-                  Mathematical Models, Astrodynamics & System Architecture
+                  Mathematical Models, Astrodynamics &amp; System Architecture
                 </h3>
                 <p>
-                  LUNA-NAV is built as a zero-stub monolithic architecture: a <strong>Python FastAPI</strong> physics backend (<code>backend/physics_engine.py</code>, <code>backend/sites_catalog.py</code>) paired with a <strong>React 19 + TypeScript + Three.js + Recharts</strong> frontend.
+                  LUNA-NAV pairs a <strong>Python FastAPI</strong> physics backend (<code>backend/physics_engine.py</code>, <code>backend/lola_dem.py</code>) with a <strong>React 19 + TypeScript + Three.js + Recharts</strong> mission console.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-[11px]">
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
-                  <h4 className="font-bold text-amber-300">1. Selenographic Frame & Ephemeris</h4>
-                  <p className="font-sans text-gray-300">
-                    Queries NASA/JPL Horizons for apparent Sun and Earth azimuth/elevation from the selected lunar surface coordinate, then compares those angles with the NASA LOLA-derived local terrain horizon. <code>de421.bsp</code> (<code>skyfield</code>) and transforms into the IAU Mean Earth / Polar Axis (ME) frame via Cassini rotational & physical libration harmonics <code>(E1..E10)</code>, projecting onto the local East-North-Up (ENU) tangent plane.
+                <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <h4 className="font-bold text-amber-300">1. Selenographic Frame &amp; Ephemeris</h4>
+                  <p className="font-sans text-slate-300">
+                    Computes apparent Sun and Earth azimuth/elevation from JPL <code>de421.bsp</code> ephemerides transformed into the IAU Mean Earth / Polar Axis (ME) frame via Cassini rotational &amp; physical libration harmonics, projected onto the local East-North-Up (ENU) tangent plane.
                   </p>
                 </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
-                  <h4 className="font-bold text-sky-300">2. 360° Ray-Caster & Curvature Drop</h4>
-                  <p className="font-sans text-gray-300">
-                    For each azimuth <code>Az = 0°..359°</code>, ray-marches outward across the 64×64 DEM <code>Z(x, y)</code> with bilinear interpolation and lunar sphere drop-off correction:<br />
+                <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <h4 className="font-bold text-sky-300">2. 360° Ray-Caster &amp; Curvature Drop</h4>
+                  <p className="font-sans text-slate-300">
+                    For each azimuth <code>Az = 0°..359°</code>, ray-marches outward across the 128×128 LOLA DEM <code>Z(x, y)</code> with bilinear interpolation and lunar sphere drop-off correction:
+                    <br />
                     <code>H(Az) = max arctan((Z(d) - Z0 - d²/(2·R_moon)) / d)</code>
                   </p>
                 </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
-                  <h4 className="font-bold text-emerald-300">3. Partial Solar Limb & Array Power</h4>
-                  <p className="font-sans text-gray-300">
-                    Accounts for the finite solar disk semi-diameter <code>r_sun = 0.266°</code> during multi-hour polar grazing eclipses. Electrical output:<br />
+                <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <h4 className="font-bold text-emerald-300">3. Partial Solar Limb &amp; Array Power</h4>
+                  <p className="font-sans text-slate-300">
+                    Models the finite solar disk semi-diameter <code>r_sun = 0.266°</code> during grazing polar eclipses. Electrical output:
+                    <br />
                     <code>P_kW = (1361 · f_sun · η_inc · A_array · 0.28) / 1000</code>
                   </p>
                 </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
-                  <h4 className="font-bold text-purple-300">4. REST Endpoints & LRU Caching</h4>
-                  <p className="font-sans text-gray-300">
-                    • <code>GET /api/sites</code> — Curated LOLA catalog<br />
-                    • <code>POST /api/evaluate</code> — Full 3D DEM + timeline<br />
-                    • <code>POST /api/compare</code> — Multi-scenario matrix<br />
-                    • <code>POST /api/launch-slip-sweep</code> — 22-point slip curve
+                <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <h4 className="font-bold text-indigo-300">4. REST Endpoints</h4>
+                  <p className="font-sans text-slate-300">
+                    • <code>GET /api/sites</code> — Curated LOLA site catalog
+                    <br />
+                    • <code>POST /api/evaluate</code> — 128×128 DEM + timeline
+                    <br />
+                    • <code>POST /api/compare_scenarios</code> — Dual A vs B trade delta
+                    <br />
+                    • <code>POST /api/launch-slip-sweep</code> — Slip sensitivity sweep
                   </p>
                 </div>
               </div>
@@ -498,11 +531,11 @@ export const OperationsManualModal: React.FC<OperationsManualModalProps> = ({
           )}
         </div>
 
-        <div className="px-5 py-3 border-t border-gray-800 flex justify-end">
+        <div className="px-5 py-3 border-t border-slate-800 flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-sky-500 text-slate-950 font-bold text-xs hover:bg-sky-400 transition"
+            className="px-4 py-1.5 rounded-lg bg-sky-400 text-slate-950 font-bold text-xs hover:bg-sky-300 transition"
           >
             Close Manual
           </button>
