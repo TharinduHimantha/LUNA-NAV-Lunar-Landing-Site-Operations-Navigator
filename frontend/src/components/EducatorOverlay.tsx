@@ -464,7 +464,7 @@ export const OperationsManualModal: React.FC<OperationsManualModalProps> = ({
                 <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3.5 space-y-1.5">
                   <h4 className="font-bold text-amber-300">1. Selenographic Frame & Ephemeris</h4>
                   <p className="font-sans text-gray-300">
-                    Computes J2000 ICRF vectors via NASA JPL <code>de421.bsp</code> (<code>skyfield</code>) and transforms into the IAU Mean Earth / Polar Axis (ME) frame via Cassini rotational & physical libration harmonics <code>(E1..E10)</code>, projecting onto the local East-North-Up (ENU) tangent plane.
+                    Queries NASA/JPL Horizons for apparent Sun and Earth azimuth/elevation from the selected lunar surface coordinate, then compares those angles with the NASA LOLA-derived local terrain horizon. <code>de421.bsp</code> (<code>skyfield</code>) and transforms into the IAU Mean Earth / Polar Axis (ME) frame via Cassini rotational & physical libration harmonics <code>(E1..E10)</code>, projecting onto the local East-North-Up (ENU) tangent plane.
                   </p>
                 </div>
 
