@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Play,
   Pause,
   RotateCcw,
-  CalendarClock,
   SlidersHorizontal,
   AlertCircle,
+  Zap,
+  Clock,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -51,183 +52,182 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
   launchSlipDays,
   onChangeLaunchSlipDays,
   slipSweep,
-  effectiveStartUtc,
   commsMarginDeg,
   personaMode,
 }) => {
   const currentStep = timeline[currentStepIndex] || timeline[0];
 
-  // Prepare multi-track chart data
-  const chartData = timeline.map((t) => ({
-    mission_hour: t.mission_hour,
-    step_index: t.step_index,
-    timestamp_short: t.timestamp_utc.slice(5, 16).replace('T', ' '),
-    sun_el: t.sun_el,
-    sun_horizon_el: t.sun_horizon_el,
-    earth_el: t.earth_el,
-    earth_threshold_el: Number((t.earth_horizon_el + commsMarginDeg).toFixed(2)),
-    power_kw: t.power_kw,
-  }));
+  const chartData = useMemo(
+    () =>
+      timeline.map((t) => ({
+        mission_hour: t.mission_hour,
+        step_index: t.step_index,
+        timestamp_short: t.timestamp_utc.slice(5, 16).replace('T', ' '),
+        sun_el: t.sun_el,
+        sun_horizon_el: t.sun_horizon_el,
+        earth_el: t.earth_el,
+        earth_threshold_el: Number((t.earth_horizon_el + commsMarginDeg).toFixed(2)),
+        power_kw: t.power_kw,
+      })),
+    [timeline, commsMarginDeg]
+  );
+
+  const hasSlipSweep = slipSweep && slipSweep.length > 0;
 
   return (
-    <section className="bg-[#111827] border border-gray-800 rounded-xl p-4 shadow-lg space-y-4">
-      {/* Dual Interactive Sliders Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pb-3 border-b border-gray-800">
-        {/* Slider 1: Mission Elapsed Time Scrubber (7 cols) */}
-        <div className="lg:col-span-7 bg-[#0B0F19] border border-gray-800 rounded-lg p-3 flex flex-col justify-between">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onTogglePlay}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-mono font-bold transition ${
-                  isPlaying
-                    ? 'bg-amber-500 text-slate-950'
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
-                }`}
-              >
-                {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                {isPlaying ? 'PAUSE' : 'PLAY 60FPS'}
-              </button>
+    <section
+      aria-label="Global Mission Timeline Transport and Telemetry Tracks"
+      className="bg-[#0F172A] border border-slate-800 rounded-xl p-4 shadow-xl space-y-4"
+    >
+      {/* Unified Global Transport & Operational Status Ribbon */}
+      <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Left: Media Playback Controls & Keyboard Hints */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onTogglePlay}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition shadow-sm ${
+                isPlaying
+                  ? 'bg-amber-500 text-slate-950'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+              }`}
+              title="Play / Pause Ephemeris Simulation (Shortcut: Space)"
+            >
+              {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              <span>{isPlaying ? 'PAUSE' : 'PLAY'}</span>
+            </button>
 
-              {/* Speed Multiplier Buttons */}
-              <div className="inline-flex rounded bg-[#111827] border border-gray-700 p-0.5">
-                {([1, 5, 20] as const).map((spd) => (
-                  <button
-                    key={spd}
-                    type="button"
-                    onClick={() => onChangePlaybackSpeed(spd)}
-                    className={`px-2 py-0.5 rounded text-[11px] font-mono transition ${
-                      playbackSpeed === spd
-                        ? 'bg-sky-500/25 text-sky-300 font-bold'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {spd}x
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onChangeStepIndex(0)}
-                className="p-1 rounded bg-gray-800 text-gray-400 hover:text-white"
-                title="Reset to Mission Hour 0"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
+            <div className="inline-flex rounded-lg bg-[#0F172A] border border-slate-700 p-0.5">
+              {([1, 5, 20] as const).map((spd) => (
+                <button
+                  key={spd}
+                  type="button"
+                  onClick={() => onChangePlaybackSpeed(spd)}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-mono transition ${
+                    playbackSpeed === spd
+                      ? 'bg-sky-500/25 text-sky-300 font-bold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {spd}x
+                </button>
+              ))}
             </div>
 
-            <div className="text-right font-mono">
-              <span className="text-xs text-amber-400 font-bold">
-                MET: T+{currentStep?.mission_hour.toFixed(0)}h
-              </span>
-              <span className="text-xs text-gray-400 ml-2">
-                ({currentStep?.timestamp_utc.replace('T', ' ').slice(0, 16)} UTC)
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={() => onChangeStepIndex(0)}
+              className="p-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition"
+              title="Reset to Mission Hour 0 (Shortcut: R)"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+
+            <span className="hidden xl:inline-flex items-center gap-1.5 text-[10px] font-mono text-slate-500 ml-2">
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400">
+                Space
+              </kbd>
+              <span>Play</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400">
+                ←/→
+              </kbd>
+              <span>Step</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400">
+                R
+              </kbd>
+              <span>Reset</span>
+            </span>
           </div>
 
-          <input
-            type="range"
-            min={0}
-            max={Math.max(0, timeline.length - 1)}
-            value={currentStepIndex}
-            onChange={(e) => onChangeStepIndex(Number(e.target.value))}
-            className="w-full cursor-pointer"
-          />
-
-          {/* Track 4: Operational Status Gantt Ribbon directly beneath time scrubber */}
-          <div className="mt-2">
-            <div className="flex items-center justify-between text-[10px] font-mono text-gray-400 mb-1">
-              <span>OPERATIONAL STATUS RIBBON (CLICK ANY SEGMENT TO JUMP):</span>
-              <span className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" /> Joint (Sun+Earth)
-                <span className="inline-block w-2 h-2 rounded-full bg-amber-400" /> Sun Only
-                <span className="inline-block w-2 h-2 rounded-full bg-sky-400" /> DTE Only
-                <span className="inline-block w-2 h-2 rounded-full bg-red-500" /> Blackout
+          {/* Right: Dual MET & UTC Mission Clocks */}
+          <div className="flex items-center gap-3 font-mono">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0F172A] border border-slate-800">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-xs font-bold text-amber-300">
+                MET T+{currentStep?.mission_hour.toFixed(0)}h
               </span>
             </div>
-            <div className="w-full h-3.5 rounded overflow-hidden flex bg-gray-900 border border-gray-800 cursor-pointer">
-              {timeline.map((step, idx) => {
-                const bg = step.joint_operational
-                  ? 'bg-emerald-500/85'
-                  : step.sun_visible
-                  ? 'bg-amber-400/85'
-                  : step.earth_visible
-                  ? 'bg-sky-400/85'
-                  : 'bg-red-600/85';
-                const isCurrent = idx === currentStepIndex;
-                return (
-                  <div
-                    key={step.step_index}
-                    onClick={() => onChangeStepIndex(idx)}
-                    style={{ width: `${100 / timeline.length}%` }}
-                    className={`${bg} h-full transition-opacity ${
-                      isCurrent ? 'ring-1 ring-white z-10 brightness-125' : 'hover:brightness-110'
-                    }`}
-                    title={`T+${step.mission_hour}h (${step.timestamp_utc}): Sun ${step.sun_el.toFixed(1)}°, Earth ${step.earth_el.toFixed(1)}°`}
-                  />
-                );
-              })}
+            <div className="text-xs text-slate-300 bg-[#0F172A] border border-slate-800 px-2.5 py-1 rounded-lg">
+              {currentStep?.timestamp_utc.replace('T', ' ').slice(0, 16)}{' '}
+              <span className="text-slate-500">UTC</span>
             </div>
           </div>
         </div>
 
-        {/* Slider 2: Launch Schedule Slip Simulator (-14d to +28d) (5 cols) */}
-        <div className="lg:col-span-5 bg-[#0B0F19] border border-gray-800 rounded-lg p-3 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-sky-300 font-mono flex items-center gap-1.5">
-              <CalendarClock className="w-3.5 h-3.5 text-sky-400" />
-              Launch Schedule Slip Simulator
-            </span>
-            <span className="px-2 py-0.5 rounded bg-sky-500/15 border border-sky-500/40 text-xs font-mono font-bold text-sky-300">
-              {launchSlipDays > 0 ? `+${launchSlipDays} Days Delay` : launchSlipDays < 0 ? `${launchSlipDays} Days Early` : 'Nominal (0d Slip)'}
+        {/* Interactive Timeline Scrubber */}
+        <input
+          type="range"
+          min={0}
+          max={Math.max(0, timeline.length - 1)}
+          value={currentStepIndex}
+          onChange={(e) => onChangeStepIndex(Number(e.target.value))}
+          aria-label="Mission Elapsed Time Scrubber"
+          className="w-full cursor-pointer"
+        />
+
+        {/* Operational Status Gantt Ribbon */}
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-slate-400 mb-1">
+            <span>OPERATIONAL WINDOWS (CLICK ANY SEGMENT TO SCRUB):</span>
+            <span className="flex flex-wrap items-center gap-3">
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" /> Full Ops (Sun + DTE)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-amber-400" /> Sun Only
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-sky-400" /> DTE Only
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-rose-500" /> Dark Eclipse
+              </span>
             </span>
           </div>
-
-          <p className="text-[11px] text-gray-400 mb-2">
-            Effective Touchdown: <strong className="text-white font-mono">{effectiveStartUtc.slice(0, 10)} UTC</strong>
-            {launchSlipDays !== 0 && (
-              <button
-                type="button"
-                onClick={() => onChangeLaunchSlipDays(0)}
-                className="ml-2 text-amber-400 underline text-[10px] font-mono"
-              >
-                Reset to 0d
-              </button>
-            )}
-          </p>
-
-          <input
-            type="range"
-            min={-14}
-            max={28}
-            step={1}
-            value={launchSlipDays}
-            onChange={(e) => onChangeLaunchSlipDays(Number(e.target.value))}
-            className="w-full cursor-pointer accent-sky-400"
-          />
-          <div className="flex justify-between text-[10px] font-mono text-gray-500 mt-1">
-            <span>-14d Early</span>
-            <span>0d Nominal</span>
-            <span>+14d Delay</span>
-            <span>+28d (1 Synodic Month)</span>
+          <div className="w-full h-3.5 rounded-md overflow-hidden flex bg-slate-900 border border-slate-800 cursor-pointer">
+            {timeline.map((step, idx) => {
+              const bg = step.joint_operational
+                ? 'bg-emerald-500/85'
+                : step.sun_visible
+                ? 'bg-amber-400/85'
+                : step.earth_visible
+                ? 'bg-sky-400/85'
+                : 'bg-rose-600/85';
+              const isCurrent = idx === currentStepIndex;
+              return (
+                <div
+                  key={step.step_index}
+                  onClick={() => onChangeStepIndex(idx)}
+                  style={{ width: `${100 / timeline.length}%` }}
+                  className={`${bg} h-full transition-opacity ${
+                    isCurrent ? 'ring-2 ring-white z-10 brightness-125' : 'hover:brightness-110'
+                  }`}
+                  title={`T+${step.mission_hour}h (${step.timestamp_utc}): Sun ${step.sun_el.toFixed(
+                    1
+                  )}°, Earth ${step.earth_el.toFixed(1)}°`}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* Synchronized Multi-Track Mission Timeline Charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Track 1 & 2: Sun & Earth Elevation vs Local Horizon Skyline */}
-        <div className="bg-[#0B0F19] border border-gray-800 rounded-lg p-3">
+        <div
+          className={`${
+            hasSlipSweep ? 'lg:col-span-4' : 'lg:col-span-7'
+          } bg-[#080C14] border border-slate-800 rounded-xl p-3`}
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono flex items-center gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono flex items-center gap-1.5">
               <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-              Track 1 & 2: Sun & Earth Elevation vs. Terrain Mask (°)
+              <span>Sun &amp; Earth Elevation vs. Terrain Horizon (°)</span>
             </span>
           </div>
-          <div className="h-48 w-full">
+          <div className="h-44 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartData}
@@ -237,36 +237,38 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
                   }
                 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis
                   dataKey="mission_hour"
-                  tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
                   tickFormatter={(v) => `${v}h`}
                 />
                 <YAxis
-                  tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
                   tickFormatter={(v) => `${v}°`}
                   width={36}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F172A',
-                    borderColor: '#334155',
-                    fontSize: '11px',
-                    fontFamily: 'monospace',
+                    backgroundColor: 'var(--bg-surface)',
+                    borderColor: 'var(--border-strong)',
+                    color: 'var(--text-primary)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontFamily: "'Times New Roman', Times, serif",
                   }}
                 />
                 <ReferenceLine
                   x={currentStep?.mission_hour}
-                  stroke="#F59E0B"
+                  stroke="#D97706"
                   strokeWidth={1.5}
                 />
                 <Area
                   type="monotone"
                   dataKey="sun_horizon_el"
                   name="Terrain Mask (Sun Az)"
-                  fill="#334155"
-                  fillOpacity={0.5}
+                  fill="#64748B"
+                  fillOpacity={0.35}
                   stroke="#64748B"
                   strokeWidth={1}
                 />
@@ -274,7 +276,7 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
                   type="monotone"
                   dataKey="sun_el"
                   name="Sun Elevation (°)"
-                  stroke="#F59E0B"
+                  stroke="#D97706"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -282,7 +284,7 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
                   type="monotone"
                   dataKey="earth_el"
                   name="Earth Elevation (°)"
-                  stroke="#38BDF8"
+                  stroke="#0284C7"
                   strokeWidth={1.8}
                   dot={false}
                 />
@@ -290,7 +292,7 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
                   type="monotone"
                   dataKey="earth_threshold_el"
                   name="DTE Horizon + Margin (°)"
-                  stroke="#0284C7"
+                  stroke="#0369A1"
                   strokeDasharray="3 3"
                   strokeWidth={1.2}
                   dot={false}
@@ -301,16 +303,21 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
         </div>
 
         {/* Track 3: Solar Electrical Power Generation Over Time (kW) */}
-        <div className="bg-[#0B0F19] border border-gray-800 rounded-lg p-3">
+        <div
+          className={`${
+            hasSlipSweep ? 'lg:col-span-4' : 'lg:col-span-5'
+          } bg-[#080C14] border border-slate-800 rounded-xl p-3`}
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono">
-              Track 3: Hardware Solar Power Generation (kW)
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Solar Power Generation (kW)</span>
             </span>
-            <span className="text-[11px] font-mono text-emerald-400">
+            <span className="text-[11px] font-mono font-bold text-emerald-400">
               Now: {currentStep?.power_kw.toFixed(2)} kW
             </span>
           </div>
-          <div className="h-48 w-full">
+          <div className="h-44 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartData}
@@ -320,28 +327,30 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
                   }
                 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis
                   dataKey="mission_hour"
-                  tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
                   tickFormatter={(v) => `${v}h`}
                 />
                 <YAxis
-                  tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
                   tickFormatter={(v) => `${v}kW`}
                   width={42}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F172A',
-                    borderColor: '#334155',
-                    fontSize: '11px',
-                    fontFamily: 'monospace',
+                    backgroundColor: 'var(--bg-surface)',
+                    borderColor: 'var(--border-strong)',
+                    color: 'var(--text-primary)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontFamily: "'Times New Roman', Times, serif",
                   }}
                 />
                 <ReferenceLine
                   x={currentStep?.mission_hour}
-                  stroke="#10B981"
+                  stroke="#059669"
                   strokeWidth={1.5}
                 />
                 <Area
@@ -350,7 +359,7 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
                   name="Electrical Output (kW)"
                   fill="#10B981"
                   fillOpacity={0.25}
-                  stroke="#10B981"
+                  stroke="#059669"
                   strokeWidth={2}
                 />
               </ComposedChart>
@@ -358,87 +367,87 @@ export const MissionTimelineDock: React.FC<MissionTimelineDockProps> = ({
           </div>
         </div>
 
-        {/* Launch Slip Sensitivity Curve (/api/launch-slip-sweep) */}
-        <div className="bg-[#0B0F19] border border-gray-800 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-sky-300 font-mono flex items-center gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 text-sky-400" />
-              Schedule Cliff Sensitivity (-14d to +28d Slip)
-            </span>
-          </div>
-          <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart
-                data={slipSweep}
-                onClick={(state) => {
-                  const idx = Number(state?.activeTooltipIndex);
-                  if (!Number.isNaN(idx) && slipSweep[idx]) {
-                    onChangeLaunchSlipDays(slipSweep[idx].slip_days);
-                  }
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-                <XAxis
-                  dataKey="slip_days"
-                  tick={{ fill: '#9CA3AF', fontSize: 10 }}
-                  tickFormatter={(v) => (v > 0 ? `+${v}d` : `${v}d`)}
-                />
-                <YAxis
-                  domain={[0, 100]}
-                  tick={{ fill: '#9CA3AF', fontSize: 10 }}
-                  tickFormatter={(v) => `${v}%`}
-                  width={36}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0F172A',
-                    borderColor: '#334155',
-                    fontSize: '11px',
-                    fontFamily: 'monospace',
+        {/* Optional Track 4: Launch Slip Sensitivity Curve when sweep data is available */}
+        {hasSlipSweep && (
+          <div className="lg:col-span-4 bg-[#080C14] border border-slate-800 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-sky-300 font-mono flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-sky-400" />
+                <span>Schedule Cliff Sensitivity (-14d to +28d)</span>
+              </span>
+            </div>
+            <div className="h-44 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={slipSweep}
+                  onClick={(state) => {
+                    const idx = Number(state?.activeTooltipIndex);
+                    if (!Number.isNaN(idx) && slipSweep[idx]) {
+                      onChangeLaunchSlipDays(slipSweep[idx].slip_days);
+                    }
                   }}
-                />
-                <ReferenceLine
-                  x={launchSlipDays}
-                  stroke="#38BDF8"
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="viability_score"
-                  name="Viability Score (0-100)"
-                  fill="#38BDF8"
-                  fillOpacity={0.18}
-                  stroke="#38BDF8"
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="sunlight_pct"
-                  name="Sunlight Window (%)"
-                  stroke="#F59E0B"
-                  strokeWidth={1.8}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="dte_comms_pct"
-                  name="DTE Comms (%)"
-                  stroke="#10B981"
-                  strokeWidth={1.5}
-                  strokeDasharray="3 2"
-                  dot={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                  <XAxis
+                    dataKey="slip_days"
+                    tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                    tickFormatter={(v) => (v > 0 ? `+${v}d` : `${v}d`)}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                    tickFormatter={(v) => `${v}%`}
+                    width={36}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'var(--bg-surface)',
+                      borderColor: 'var(--border-strong)',
+                      color: 'var(--text-primary)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontFamily: "'Times New Roman', Times, serif",
+                    }}
+                  />
+                  <ReferenceLine x={launchSlipDays} stroke="#0284C7" strokeWidth={2} />
+                  <Area
+                    type="monotone"
+                    dataKey="viability_score"
+                    name="Viability Score (0-100)"
+                    fill="#0284C7"
+                    fillOpacity={0.18}
+                    stroke="#0284C7"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="sunlight_pct"
+                    name="Sunlight Window (%)"
+                    stroke="#D97706"
+                    strokeWidth={1.8}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="dte_comms_pct"
+                    name="DTE Comms (%)"
+                    stroke="#059669"
+                    strokeWidth={1.5}
+                    strokeDasharray="3 2"
+                    dot={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {personaMode === 'educator' && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-xs text-amber-200 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
           <span>
-            <strong>Explorer Tip:</strong> Drag the <em>Launch Schedule Slip Simulator</em> slider on the right to see how delaying a rocket launch by just a few days shifts the Moon in its 27.3-day libration and 29.5-day solar cycle—exposing "schedule cliffs" where crater shadows suddenly block the Sun!
+            <strong>Explorer Tip:</strong> Scrub the timeline or click any colored block in the Operational Windows bar to jump straight to a sunrise, sunset, or Earth radio blackout event.
           </span>
         </div>
       )}
