@@ -1,3 +1,4 @@
+// frontend/src/components/workbench/SlideOutDrawer.tsx
 import React from 'react';
 import { X, PanelLeftClose } from 'lucide-react';
 
@@ -25,11 +26,14 @@ export const SlideOutDrawer: React.FC<SlideOutDrawerProps> = ({
       aria-label={title}
       data-tour="drawer"
       className={`
-        fixed z-30 hud-panel-strong rounded-lg flex flex-col overflow-hidden
-        transition-all duration-200 ease-out
+        fixed hud-panel-strong rounded-lg flex flex-col overflow-hidden
         left-16 top-3 bottom-16
-        ${wide ? 'w-[420px] max-w-[calc(100vw-5rem)]' : 'w-[324px] max-w-[calc(100vw-5rem)]'}
-        max-md:left-2 max-md:right-2 max-md:top-auto max-md:bottom-24 max-md:w-auto max-md:max-w-none max-md:h-[54vh]
+        ${
+          wide
+            ? 'z-40 w-[calc(100vw-4.75rem)] max-w-[calc(100vw-4.75rem)]'
+            : 'z-30 w-[324px] max-w-[calc(100vw-5rem)] transition-[width] duration-150 ease-out'
+        }
+        max-md:z-30 max-md:left-2 max-md:right-2 max-md:top-auto max-md:bottom-24 max-md:w-auto max-md:max-w-none max-md:h-[54vh]
       `}
     >
       {/* Drawer Header */}
