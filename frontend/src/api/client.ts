@@ -154,7 +154,7 @@ export function buildFallbackEvaluation(req: EvaluateRequest): MissionEvaluation
   }
 
   const horizon_profile: HorizonPoint[] = Array.from({ length: 360 }, (_, az) => {
-    let h = 0.8;
+    let h: number;
     if (site.terrain_type === 'ridge') {
       h = 0.35 + 1.45 * Math.exp(-Math.pow((az - 48) / 22, 2)) + 1.75 * Math.exp(-Math.pow((az - 295) / 25, 2));
     } else if (site.terrain_type === 'massif') {

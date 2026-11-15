@@ -11,7 +11,7 @@ export interface LanderModel3DProps {
   cinematicMode: boolean;
 }
 
-export function azElToDirectionVector(azDeg: number, elDeg: number): THREE.Vector3 {
+function azElToDirectionVector(azDeg: number, elDeg: number): THREE.Vector3 {
   const azRad = (azDeg * Math.PI) / 180;
   const elRad = (elDeg * Math.PI) / 180;
   const cosEl = Math.cos(elRad);

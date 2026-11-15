@@ -1,78 +1,328 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type {
   LunarSite,
   SolarArrayType,
   PersonaMode,
   CustomSiteInput,
   MissionEvaluationResponse,
-  LaunchSlipSweepPoint,
   PinnedScenario,
   EvaluateRequest,
-  WorkspaceViewMode,
   DualScenarioComparisonResponse,
 } from './types/mission';
+import type {
+  RailPanelId,
+  ProjectionMode,
+  CameraPresetId,
+  ActiveToolId,
+  LayerItemState,
+  BookmarkItem,
+  CursorTelemetry,
+  ContourSettings,
+  GraticuleSettings,
+  MeasurePoint3D,
+  TourBeforeActionContext,
+} from './types/workbench';
 import {
   fetchSites,
   evaluateMission,
   compareTwoScenarios,
-  fetchLaunchSlipSweep,
   FALLBACK_SITES,
 } from './api/client';
-import { HeaderBar } from './components/HeaderBar';
-import { TelemetryStrip } from './components/TelemetryStrip';
 import { LunarTerrain3D } from './components/LunarTerrain3D';
 import { PolarSkyChart } from './components/PolarSkyChart';
-import { MissionTimelineDock } from './components/MissionTimelineDock';
 import { ComparisonMatrix } from './components/ComparisonMatrix';
 import { ScenarioCompareDashboard } from './components/ScenarioCompareDashboard';
+import { OperationsManualModal } from './components/EducatorOverlay';
+import { LeftIconRail } from './components/workbench/LeftIconRail';
+import { SlideOutDrawer } from './components/workbench/SlideOutDrawer';
+import { TopRightToolbar } from './components/workbench/TopRightToolbar';
+import { BottomHudOverlays } from './components/workbench/BottomHudOverlays';
+import { LayerManagerPanel } from './components/workbench/LayerManagerPanel';
+import { FloatingColorBar } from './components/workbench/FloatingColorBar';
+import { MeasurementToolsPanel } from './components/workbench/MeasurementToolsPanel';
+import { GuidedTour } from './components/tour/GuidedTour';
+import { TOUR_STEPS } from './components/tour/tourSteps';
 import {
-  EducatorOverlay,
-  InteractiveTutorialModal,
-  OperationsManualModal,
-} from './components/EducatorOverlay';
-import { Info, ShieldAlert } from 'lucide-react';
+  buildShareableWorkbenchUrl,
+  captureViewportPngSnapshot,
+  exportMissionReportJson,
+  exportTimelineCsv,
+  parseInitialWorkbenchUrlState,
+} from './utils/missionExport';
+import {
+  Search,
+  MapPin,
+  Bookmark,
+  Share2,
+  Check,
+  Sparkles,
+  BookOpen,
+  X,
+  CalendarClock,
+  Undo2,
+  Trash2,
+  Camera,
+  FileJson,
+  FileSpreadsheet,
+} from 'lucide-react';
+
+const TOUR_STORAGE_KEY = 'luna-nav-tour-v1';
+
+const INITIAL_LAYERS: LayerItemState[] = [
+  {
+    id: 'lroc_wac',
+    label: 'LROC WAC Albedo Mosaic',
+    group: 'Basemap',
+    visible: true,
+    opacity: 1,
+    sourceNote: 'NASA LRO Wide Angle Camera normalized reflectance basemap (643 nm).',
+    instrumentMeta: 'LRO / LROC Wide Angle Camera',
+    resolutionMeta: '100 m/px global mosaic',
+    datumMeta: 'IAU Mean Earth 1737.4 km',
+  },
+  {
+    id: 'lola_elevation',
+    label: 'LOLA Hypsometric Elevation',
+    group: 'Elevation',
+    visible: false,
+    opacity: 0.65,
+    colormap: 'cividis',
+    unit: 'm',
+    minVal: -2500,
+    maxVal: 4800,
+    gamma: 1.0,
+    sourceNote: 'LOLA South Pole Digital Elevation Model relative to 1,737.4 km reference sphere.',
+    instrumentMeta: 'LRO / Lunar Orbiter Laser Altimeter',
+    resolutionMeta: '80 m/px (LDEM_80S_80MPP_ADJ)',
+    datumMeta: 'R = 1737.4 km Sphere',
+  },
+  {
+    id: 'terrain_slope',
+    label: 'Surface Slope & HLS Threshold',
+    group: 'Slope',
+    visible: false,
+    opacity: 0.75,
+    colormap: 'inferno',
+    unit: 'deg',
+    minVal: 0,
+    maxVal: 20,
+    gamma: 1.0,
+    sourceNote: 'Finite-difference topographic gradient; highlights HLS landing zones (< 5.0°).',
+    instrumentMeta: 'Derived LOLA Slope Product',
+    resolutionMeta: '80 m baseline',
+    datumMeta: 'Local ENU Tangent Plane',
+  },
+  {
+    id: 'psr_cold_traps',
+    label: 'Diviner PSR Cold Traps (<70K)',
+    group: 'Illumination',
+    visible: false,
+    opacity: 0.85,
+    colormap: 'viridis',
+    unit: 'K',
+    minVal: 25,
+    maxVal: 250,
+    gamma: 1.0,
+    sourceNote: 'LRO Diviner bolometric brightness temperatures identifying water-ice cold traps.',
+    instrumentMeta: 'LRO / Diviner Lunar Radiometer',
+    resolutionMeta: '240 m/px Polar Seasonal',
+    datumMeta: 'Bolometric K',
+  },
+  {
+    id: 'dte_visibility',
+    label: 'Earth DTE Line-of-Sight',
+    group: 'Visibility',
+    visible: true,
+    opacity: 0.75,
+    sourceNote: 'Topocentric Earth azimuth/elevation clearance above local LOLA horizon.',
+    instrumentMeta: 'JPL DE421 Ephemeris + LOLA Mask',
+    resolutionMeta: '1° Azimuthal Resolution',
+    datumMeta: 'Topocentric ENU',
+  },
+  {
+    id: 'landing_markers',
+    label: 'Candidate Landing Markers',
+    group: 'Sites',
+    visible: true,
+    opacity: 1,
+    sourceNote: 'Artemis III, VIPER, and CLPS candidate landing coordinates.',
+    instrumentMeta: 'NASA Exploration Systems',
+    resolutionMeta: 'Pinpoint Selenographic',
+    datumMeta: 'IAU ME Frame',
+  },
+];
 
 export function App() {
+  const initialUrlState = useMemo(() => parseInitialWorkbenchUrlState(), []);
+
   const [sites, setSites] = useState<LunarSite[]>(FALLBACK_SITES);
 
-  // Comparison-First UX Mode ('compare' default per Phase 2 Spec, 'single' for single-site deep dive)
-  const [workspaceViewMode, setWorkspaceViewMode] = useState<WorkspaceViewMode>('compare');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return (localStorage.getItem('luna-nav-theme') as 'dark' | 'light') || 'dark';
+  });
 
-  // Primary Scenario A Controls
-  const [selectedSiteId, setSelectedSiteId] = useState<string>('shackleton_ridge');
-  const [customSite, setCustomSite] = useState<CustomSiteInput | null>(null);
-  const [startDateStr, setStartDateStr] = useState<string>('2026-12-01');
-  const [durationDays, setDurationDays] = useState<number>(30);
-  const [launchSlipDays, setLaunchSlipDays] = useState<number>(0);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('light');
+    } else {
+      root.classList.remove('light');
+    }
+    localStorage.setItem('luna-nav-theme', theme);
+  }, [theme]);
 
-  // Comparison Scenario B Controls
+  const [activePanel, setActivePanel] = useState<RailPanelId | null>('sites');
+  const [projection, setProjection] = useState<ProjectionMode>(
+    initialUrlState.projection ?? '3d_terrain'
+  );
+  const [cameraPreset, setCameraPreset] = useState<CameraPresetId>(
+    initialUrlState.cameraPreset ?? 'orbit'
+  );
+  const [activeTool, setActiveTool] = useState<ActiveToolId>('none');
+  const [measurePoints, setMeasurePoints] = useState<MeasurePoint3D[]>([]);
+  const [profileHoverT, setProfileHoverT] = useState<number | null>(null);
+  const [presentationMode, setPresentationMode] = useState<boolean>(false);
+  const [siteQuery, setSiteQuery] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
+  const [snapshotStatus, setSnapshotStatus] = useState<'idle' | 'saved' | 'unavailable'>('idle');
+
+  const [layers, setLayers] = useState<LayerItemState[]>(INITIAL_LAYERS);
+  const [contourSettings, setContourSettings] = useState<ContourSettings>({
+    visible: true,
+    intervalM: 100,
+  });
+  const [graticuleSettings, setGraticuleSettings] = useState<GraticuleSettings>({
+    visible: true,
+    rangeRings: true,
+  });
+  const [hoverCursor, setHoverCursor] = useState<CursorTelemetry | null>(null);
+
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem('luna-nav-bookmarks');
+      return raw ? (JSON.parse(raw) as BookmarkItem[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('luna-nav-bookmarks', JSON.stringify(bookmarks));
+  }, [bookmarks]);
+
+  const [selectedSiteId, setSelectedSiteId] = useState<string>(
+    initialUrlState.siteId ?? 'shackleton_ridge'
+  );
+  const [customSite, setCustomSite] = useState<CustomSiteInput | null>(
+    initialUrlState.customSite ?? null
+  );
+  const [customLat, setCustomLat] = useState<string>(
+    initialUrlState.customSite ? String(initialUrlState.customSite.lat_deg) : '-88.80'
+  );
+  const [customLon, setCustomLon] = useState<string>(
+    initialUrlState.customSite ? String(initialUrlState.customSite.lon_deg) : '120.00'
+  );
+  const [startDateStr, setStartDateStr] = useState<string>(
+    initialUrlState.startDateStr ?? '2026-12-01'
+  );
+  const [durationDays, setDurationDays] = useState<number>(
+    initialUrlState.durationDays ?? 30
+  );
+  const [launchSlipDays, setLaunchSlipDays] = useState<number>(
+    initialUrlState.launchSlipDays ?? 0
+  );
+
   const [siteBId, setSiteBId] = useState<string>('malapert_massif');
   const [slipBDays, setSlipBDays] = useState<number>(0);
 
-  // Shared Hardware Controls
-  const [arrayType, setArrayType] = useState<SolarArrayType>('vertical_cylindrical');
+  const [arrayType, setArrayType] = useState<SolarArrayType>(
+    initialUrlState.arrayType ?? 'vertical_cylindrical'
+  );
   const [arrayAreaM2, setArrayAreaM2] = useState<number>(12.0);
   const [commsMarginDeg, setCommsMarginDeg] = useState<number>(1.0);
 
-  // Persona & Modals State
   const [personaMode, setPersonaMode] = useState<PersonaMode>('engineering');
-  const [tutorialOpen, setTutorialOpen] = useState<boolean>(false);
   const [manualOpen, setManualOpen] = useState<boolean>(false);
 
-  // Evaluation & Dual Comparison State
+  // Onboarding Product Tour state
+  const [isTourOpen, setIsTourOpen] = useState<boolean>(false);
+  const [tourStepIndex, setTourStepIndex] = useState<number>(0);
+  const preTourStateRef = useRef<{
+    activePanel: RailPanelId | null;
+    projection: ProjectionMode;
+  } | null>(null);
+  const hasAutoStartedTourRef = useRef<boolean>(false);
+
   const [evaluation, setEvaluation] = useState<MissionEvaluationResponse | null>(null);
   const [dualComparison, setDualComparison] = useState<DualScenarioComparisonResponse | null>(null);
-  const [slipSweep, setSlipSweep] = useState<LaunchSlipSweepPoint[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadedRequestKey, setLoadedRequestKey] = useState<string>('');
 
-  // Playback & Scrubber State
-  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState<number>(
+    initialUrlState.stepIndex ?? 0
+  );
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<1 | 5 | 20>(5);
 
-  // Pinned Scenarios for 4-Site Trade-Off Matrix
   const [pinnedScenarios, setPinnedScenarios] = useState<PinnedScenario[]>([]);
   const [isLoadingPreset, setIsLoadingPreset] = useState<boolean>(false);
+
+  const startTour = useCallback(() => {
+    if (presentationMode) return;
+    preTourStateRef.current = {
+      activePanel,
+      projection,
+    };
+    setIsPlaying(false);
+    setProjection('3d_terrain');
+    setTourStepIndex(0);
+    setIsTourOpen(true);
+  }, [activePanel, projection, presentationMode]);
+
+  const finishTour = useCallback((status: 'done' | 'skipped') => {
+    try {
+      localStorage.setItem(TOUR_STORAGE_KEY, status);
+    } catch {
+      // Ignore storage access errors in restricted profiles
+    }
+    setIsTourOpen(false);
+    if (preTourStateRef.current) {
+      setActivePanel(preTourStateRef.current.activePanel);
+      setProjection(preTourStateRef.current.projection);
+      preTourStateRef.current = null;
+    }
+  }, []);
+
+  const tourActionContext = useMemo<TourBeforeActionContext>(
+    () => ({
+      setActivePanel,
+      setProjection,
+    }),
+    []
+  );
+
+  // Auto-start tour once on first visit (~600ms after initial data loads)
+  useEffect(() => {
+    if (!evaluation || !dualComparison || hasAutoStartedTourRef.current || presentationMode) {
+      return;
+    }
+    hasAutoStartedTourRef.current = true;
+
+    let seen: string | null = null;
+    try {
+      seen = localStorage.getItem(TOUR_STORAGE_KEY);
+    } catch {
+      seen = 'skipped';
+    }
+    if (seen === 'done' || seen === 'skipped') return;
+
+    const timer = window.setTimeout(() => {
+      startTour();
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [evaluation, dualComparison, presentationMode, startTour]);
 
   useEffect(() => {
     fetchSites().then((list) => {
@@ -80,10 +330,38 @@ export function App() {
     });
   }, []);
 
-  // Evaluate Scenario A & Scenario B simultaneously via POST /api/compare_scenarios
+  const currentRequestKey = useMemo(
+    () =>
+      JSON.stringify({
+        selectedSiteId,
+        customSite,
+        startDateStr,
+        durationDays,
+        launchSlipDays,
+        siteBId,
+        slipBDays,
+        arrayType,
+        arrayAreaM2,
+        commsMarginDeg,
+      }),
+    [
+      selectedSiteId,
+      customSite,
+      startDateStr,
+      durationDays,
+      launchSlipDays,
+      siteBId,
+      slipBDays,
+      arrayType,
+      arrayAreaM2,
+      commsMarginDeg,
+    ]
+  );
+
+  const isLoading = loadedRequestKey !== currentRequestKey;
+
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     const stepHrs = durationDays > 30 ? 4.0 : 2.0;
 
     const reqA: EvaluateRequest = {
@@ -112,23 +390,21 @@ export function App() {
       dem_grid_size: 128,
     };
 
-    compareTwoScenarios(reqA, reqB)
-      .then((compRes) => {
-        if (!active) return;
-        setDualComparison(compRes);
-        setEvaluation(compRes.scenario_a);
-        setCurrentStepIndex((prev) =>
-          Math.min(prev, Math.max(0, compRes.scenario_a.timeline.length - 1))
-        );
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
+    compareTwoScenarios(reqA, reqB).then((compRes) => {
+      if (!active) return;
+      setDualComparison(compRes);
+      setEvaluation(compRes.scenario_a);
+      setLoadedRequestKey(currentRequestKey);
+      setCurrentStepIndex((prev) =>
+        Math.min(prev, Math.max(0, compRes.scenario_a.timeline.length - 1))
+      );
+    });
 
     return () => {
       active = false;
     };
   }, [
+    currentRequestKey,
     selectedSiteId,
     customSite,
     startDateStr,
@@ -141,77 +417,131 @@ export function App() {
     commsMarginDeg,
   ]);
 
-  // Fetch Launch Slip Sensitivity Sweep for Primary Site A (uses fast local ephemeris on backend)
-  useEffect(() => {
-    let active = true;
-    const req: EvaluateRequest = {
-      site_id: selectedSiteId,
-      custom_site: selectedSiteId === 'custom' ? customSite : null,
-      start_datetime_utc: `${startDateStr}T00:00:00Z`,
-      duration_days: durationDays,
-      step_hours: 4.0,
-      launch_slip_days: 0,
-      array_type: arrayType,
-      array_area_m2: arrayAreaM2,
-      comms_margin_deg: commsMarginDeg,
-    };
-
-    fetchLaunchSlipSweep(req).then((res) => {
-      if (active && res?.sweep) {
-        setSlipSweep(res.sweep);
-      }
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [
-    selectedSiteId,
-    customSite,
-    startDateStr,
-    durationDays,
-    arrayType,
-    arrayAreaM2,
-    commsMarginDeg,
-  ]);
-
-  // Synchronized 60 FPS timeline playback loop
   useEffect(() => {
     if (!isPlaying || !evaluation) return;
-    const intervalMs = playbackSpeed === 20 ? 35 : playbackSpeed === 5 ? 90 : 220;
+    const maxLen = evaluation.timeline.length;
+    if (maxLen <= 1) return;
+
+    const intervalMs = playbackSpeed === 20 ? 40 : playbackSpeed === 5 ? 95 : 220;
     const timer = window.setInterval(() => {
-      setCurrentStepIndex((prev) => {
-        if (prev + 1 >= evaluation.timeline.length) {
-          return 0;
-        }
-        return prev + 1;
-      });
+      setCurrentStepIndex((prev) => (prev + 1 >= maxLen ? 0 : prev + 1));
     }, intervalMs);
 
     return () => window.clearInterval(timer);
   }, [isPlaying, playbackSpeed, evaluation]);
 
-  const handleSelectSite = useCallback(
-    (siteId: string, custom?: CustomSiteInput | null) => {
-      setSelectedSiteId(siteId);
-      if (custom !== undefined) {
-        setCustomSite(custom);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Ignore every key while the onboarding product tour is active
+      if (isTourOpen) return;
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'SELECT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
       }
-      setCurrentStepIndex(0);
+
+      const key = e.key.toLowerCase();
+      if (e.key === 'Escape') {
+        if (presentationMode) setPresentationMode(false);
+        else if (activeTool !== 'none') {
+          setActiveTool('none');
+          setMeasurePoints([]);
+          setProfileHoverT(null);
+        } else {
+          setActivePanel(null);
+        }
+      } else if (e.key === 'Backspace' && activeTool !== 'none') {
+        e.preventDefault();
+        setMeasurePoints((prev) => prev.slice(0, -1));
+      } else if (key === 's') {
+        setActivePanel((p) => (p === 'sites' ? null : 'sites'));
+      } else if (key === 'l') {
+        setActivePanel((p) => (p === 'layers' ? null : 'layers'));
+      } else if (key === 't') {
+        setActivePanel((p) => (p === 'tools' ? null : 'tools'));
+      } else if (key === 'b') {
+        setActivePanel((p) => (p === 'bookmarks' ? null : 'bookmarks'));
+      } else if (key === 'c') {
+        setActivePanel((p) => (p === 'compare' ? null : 'compare'));
+      } else if (key === 'g') {
+        setActivePanel((p) => (p === 'guide' ? null : 'guide'));
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPlaying((p) => !p);
+      } else if (e.key === 'ArrowRight' && evaluation) {
+        e.preventDefault();
+        setIsPlaying(false);
+        setCurrentStepIndex((prev) => Math.min(evaluation.timeline.length - 1, prev + 1));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setIsPlaying(false);
+        setCurrentStepIndex((prev) => Math.max(0, prev - 1));
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isTourOpen, evaluation, presentationMode, activeTool]);
+
+  const handleTogglePanel = useCallback((panel: RailPanelId) => {
+    setActivePanel((prev) => (prev === panel ? null : panel));
+  }, []);
+
+  const handleSelectSite = useCallback((siteId: string, custom?: CustomSiteInput | null) => {
+    setSelectedSiteId(siteId);
+    if (custom !== undefined) setCustomSite(custom);
+    setHoverCursor(null);
+    setMeasurePoints([]);
+    setProfileHoverT(null);
+    setCurrentStepIndex(0);
+  }, []);
+
+  const handleSelectTool = useCallback((tool: ActiveToolId) => {
+    setActiveTool(tool);
+    setMeasurePoints([]);
+    setProfileHoverT(null);
+  }, []);
+
+  const handleAddMeasurePoint = useCallback(
+    (pt: MeasurePoint3D) => {
+      setMeasurePoints((prev) => {
+        if (activeTool === 'point_inspect') return [pt];
+        if (activeTool === 'circle' || activeTool === 'profile') {
+          return prev.length >= 2 ? [pt] : [...prev, pt];
+        }
+        return [...prev, pt];
+      });
     },
-    []
+    [activeTool]
   );
 
-  const handleApplyDualPreset = useCallback(
-    (newSiteA: string, newSlipA: number, newSiteB: string, newSlipB: number) => {
-      setSelectedSiteId(newSiteA);
-      setLaunchSlipDays(newSlipA);
-      setSiteBId(newSiteB);
-      setSlipBDays(newSlipB);
-      setCurrentStepIndex(0);
-    },
-    []
+  const psrLayerVisible = useMemo(
+    () => layers.find((l) => l.id === 'psr_cold_traps')?.visible ?? false,
+    [layers]
   );
+
+  const handleTogglePsrFromViewport = useCallback((val: boolean) => {
+    setLayers((prev) =>
+      prev.map((l) => (l.id === 'psr_cold_traps' ? { ...l, visible: val } : l))
+    );
+  }, []);
+
+  const filteredSites = useMemo(() => {
+    const q = siteQuery.trim().toLowerCase();
+    if (!q) return sites;
+    return sites.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.subtitle.toLowerCase().includes(q) ||
+        s.program_tags.some((t) => t.toLowerCase().includes(q))
+    );
+  }, [sites, siteQuery]);
 
   const handlePinCurrentScenario = useCallback(() => {
     if (!evaluation) return;
@@ -220,26 +550,24 @@ export function App() {
         launchSlipDays === 0
           ? 'Nominal'
           : launchSlipDays > 0
-          ? `+${launchSlipDays}d Slip`
-          : `${launchSlipDays}d Early`;
+          ? `+${launchSlipDays}d`
+          : `${launchSlipDays}d`;
       const label = `${evaluation.site.name.split(' ')[0]} (${slipTag})`;
-      const newEntry: PinnedScenario = {
-        scenario_id: `${evaluation.site.id}_${Date.now()}`,
-        label,
-        evaluation,
-      };
-      return [...prev.slice(-3), newEntry];
+      return [
+        ...prev.slice(-3),
+        { scenario_id: `${evaluation.site.id}_${Date.now()}`, label, evaluation },
+      ];
     });
   }, [evaluation, launchSlipDays]);
 
   const handleLoadReferencePreset = useCallback(async () => {
     setIsLoadingPreset(true);
     try {
-      const configs: { label: string; site_id: string; slip: number }[] = [
-        { label: 'Shackleton (Nominal)', site_id: 'shackleton_ridge', slip: 0 },
-        { label: 'Malapert Relay (Nominal)', site_id: 'malapert_massif', slip: 0 },
-        { label: 'Nobile Rim (+8d Slip)', site_id: 'nobile_rim', slip: 8 },
-        { label: 'Haworth Floor (PSR)', site_id: 'haworth_floor', slip: 0 },
+      const configs = [
+        { label: 'Shackleton (0d)', site_id: 'shackleton_ridge', slip: 0 },
+        { label: 'Malapert (0d)', site_id: 'malapert_massif', slip: 0 },
+        { label: 'Nobile (+8d)', site_id: 'nobile_rim', slip: 8 },
+        { label: 'Haworth (PSR)', site_id: 'haworth_floor', slip: 0 },
       ];
       const evals = await Promise.all(
         configs.map(async (c) => {
@@ -255,11 +583,7 @@ export function App() {
             comms_margin_deg: commsMarginDeg,
             dem_grid_size: 64,
           });
-          return {
-            scenario_id: `preset_${c.site_id}_${c.slip}`,
-            label: c.label,
-            evaluation: ev,
-          };
+          return { scenario_id: `preset_${c.site_id}_${c.slip}`, label: c.label, evaluation: ev };
         })
       );
       setPinnedScenarios(evals);
@@ -268,162 +592,169 @@ export function App() {
     }
   }, [startDateStr, durationDays, arrayType, arrayAreaM2, commsMarginDeg]);
 
-  const handleTutorialStepAction = (stepIdx: number) => {
-    if (stepIdx === 0) {
-      setSelectedSiteId('shackleton_ridge');
-      setSiteBId('malapert_massif');
-      setLaunchSlipDays(0);
-      setSlipBDays(0);
-      setArrayType('vertical_cylindrical');
-    } else if (stepIdx === 1) {
-      setIsPlaying(true);
-      setPlaybackSpeed(5);
-    } else if (stepIdx === 2) {
-      setIsPlaying(false);
-      setArrayType((prev) =>
-        prev === 'vertical_cylindrical' ? 'horizontal_deck' : 'vertical_cylindrical'
-      );
-    } else if (stepIdx === 3) {
-      handleLoadReferencePreset();
-    }
+  const handleAddBookmark = () => {
+    if (!evaluation) return;
+    const item: BookmarkItem = {
+      id: `bm_${Date.now()}`,
+      name: `${evaluation.site.name} (${startDateStr})`,
+      siteId: selectedSiteId,
+      startDateStr,
+      launchSlipDays,
+      projection,
+      createdAtUtc: new Date().toISOString(),
+    };
+    setBookmarks((prev) => [item, ...prev.slice(0, 11)]);
+  };
+
+  const handleCopyShareUrl = () => {
+    const shareUrl = buildShareableWorkbenchUrl({
+      siteId: selectedSiteId,
+      customSite,
+      startDateStr,
+      durationDays,
+      launchSlipDays,
+      arrayType,
+      projection,
+      cameraPreset,
+      stepIndex: currentStepIndex,
+    });
+    navigator.clipboard?.writeText(shareUrl);
+    setCopiedLink(true);
+    window.setTimeout(() => setCopiedLink(false), 2000);
   };
 
   if (!evaluation || !dualComparison) {
     return (
-      <div className="min-h-screen bg-[#0B0F19] text-white flex items-center justify-center font-mono text-sm">
-        Ingesting NASA LOLA 128×128 DEMs, LROC WAC Textures, Diviner Thermal Grids &amp; Selenographic Ephemerides...
+      <div className="w-screen h-screen bg-[#05070b] text-slate-200 flex flex-col items-center justify-center gap-3 font-mono text-xs">
+        <div className="w-7 h-7 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+        <span>INITIALIZING LOLA DEM, DIVINER THERMAL &amp; EPHEMERIS WORKBENCH...</span>
       </div>
     );
   }
 
   const currentStep = evaluation.timeline[currentStepIndex] || evaluation.timeline[0];
 
+  const handleCapturePngSnapshot = () => {
+    const ok = captureViewportPngSnapshot(evaluation, currentStep);
+    setSnapshotStatus(ok ? 'saved' : 'unavailable');
+    window.setTimeout(() => setSnapshotStatus('idle'), 2200);
+  };
+
+  const activeCursor: CursorTelemetry = hoverCursor || {
+    latDeg: evaluation.site.lat_deg,
+    lonDeg: evaluation.site.lon_deg,
+    elevM: evaluation.terrain_grid.lander_pos.z_m,
+    slopeDeg: evaluation.terrain_grid.landing_pad_slope_deg ?? 3.1,
+    sunlit: currentStep?.sun_visible ?? false,
+    earthVisible: currentStep?.earth_visible ?? false,
+  };
+
+  const drawerMeta: Record<RailPanelId, { title: string; subtitle: string; wide?: boolean }> = {
+    sites: {
+      title: 'Sites, Coordinates & Ephemeris',
+      subtitle: 'Curated Artemis / CLPS targets & custom selenographic coordinates',
+    },
+    layers: {
+      title: 'Scientific Layers, Contours & Stretches',
+      subtitle: 'Reorder stack, adjust min/max/gamma ramps & inspect provenance',
+    },
+    tools: {
+      title: 'Geodesic Measurement & DEM Profile',
+      subtitle: 'Point inspect, geodesic distance, area, range rings & transect chart',
+    },
+    bookmarks: {
+      title: 'Bookmarks, Share URL & Data Export',
+      subtitle: 'Save reproducible states, capture PNG frames, or export JSON/CSV',
+    },
+    compare: {
+      title: 'Site & Schedule Trade Comparator',
+      subtitle: 'Side-by-side Scenario A vs B & 4-site trade matrix',
+      wide: true,
+    },
+    guide: {
+      title: 'Lunar South Pole Science & Flight Rules',
+      subtitle: 'Grazing sunlight, PSR cold traps, array geometry & manual',
+    },
+  };
+
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-gray-100 flex flex-col">
-      {/* Module A: Top Mission Control Header & Scenario Bar */}
-      <HeaderBar
-        sites={sites}
-        selectedSiteId={selectedSiteId}
-        customSite={customSite}
-        onSelectSite={handleSelectSite}
-        startDateStr={startDateStr}
-        onChangeStartDate={setStartDateStr}
-        durationDays={durationDays}
-        onChangeDuration={setDurationDays}
-        arrayType={arrayType}
-        onChangeArrayType={setArrayType}
-        arrayAreaM2={arrayAreaM2}
-        onChangeArrayArea={setArrayAreaM2}
-        commsMarginDeg={commsMarginDeg}
-        onChangeCommsMargin={setCommsMarginDeg}
-        personaMode={personaMode}
-        onChangePersonaMode={setPersonaMode}
-        workspaceViewMode={workspaceViewMode}
-        onChangeWorkspaceViewMode={setWorkspaceViewMode}
-        onPinCurrentScenario={handlePinCurrentScenario}
-        pinnedCount={pinnedScenarios.length}
-        onOpenTutorial={() => setTutorialOpen(true)}
-        onOpenManual={() => setManualOpen(true)}
-        ephemerisEngine={evaluation.ephemeris_engine}
-      />
-
-      {/* Module B: Real-Time Operational KPI & Countdown Strip (Primary Scenario A) */}
-      <TelemetryStrip
-        currentStep={currentStep}
-        kpis={evaluation.kpis}
-        personaMode={personaMode}
-      />
-
-      {/* Optional Educator Guided Physics Explainer Overlay */}
-      <EducatorOverlay
-        visible={personaMode === 'educator'}
-        site={evaluation.site}
-        arrayType={arrayType}
-        onSelectSiteId={(id) => handleSelectSite(id, null)}
-        onSelectArrayType={setArrayType}
-      />
-
-      {/* Main Mission Control Workspace */}
-      <main className="flex-1 p-4 space-y-4 max-w-[1920px] w-full mx-auto">
-        {workspaceViewMode === 'compare' ? (
-          /* PHASE 2 COMPARISON-FIRST UX: Dual-Pane 3D Visualizer + Delta Trade-Off Matrix + Radar Chart */
-          <>
-            <ScenarioCompareDashboard
-              sites={sites}
-              comparisonData={dualComparison}
-              siteAId={selectedSiteId}
-              onChangeSiteA={(id) => handleSelectSite(id, null)}
-              slipADays={launchSlipDays}
-              onChangeSlipA={setLaunchSlipDays}
-              siteBId={siteBId}
-              onChangeSiteB={setSiteBId}
-              slipBDays={slipBDays}
-              onChangeSlipB={setSlipBDays}
+    <div className="relative w-screen h-screen overflow-hidden bg-[#05070b] select-none">
+      {/* FULL-BLEED PRIMARY VIEWPORT */}
+      <main
+        aria-label="Primary Selenographic Visualization Viewport"
+        data-tour="viewport"
+        className="fixed inset-0 w-screen h-screen"
+      >
+        {projection === '3d_terrain' && (
+          <div className="w-full h-full">
+            <LunarTerrain3D
+              site={evaluation.site}
+              terrainGrid={evaluation.terrain_grid}
+              timeline={evaluation.timeline}
               currentStepIndex={currentStepIndex}
-              onChangeStepIndex={(idx) => {
-                setIsPlaying(false);
-                setCurrentStepIndex(idx);
-              }}
-              isPlaying={isPlaying}
-              onTogglePlay={() => setIsPlaying((p) => !p)}
-              playbackSpeed={playbackSpeed}
-              onChangePlaybackSpeed={setPlaybackSpeed}
               arrayType={arrayType}
-              commsMarginDeg={commsMarginDeg}
-              onApplyPreset={handleApplyDualPreset}
+              thermalMetrics={evaluation.thermal_metrics}
+              externalShowPsr={psrLayerVisible}
+              onTogglePsr={handleTogglePsrFromViewport}
+              layers={layers}
+              contourSettings={contourSettings}
+              graticuleSettings={graticuleSettings}
+              cameraPreset={cameraPreset}
+              cinematicMode={presentationMode}
+              showEducationalVectors={personaMode === 'educator'}
+              onCursorTelemetry={setHoverCursor}
+              activeTool={activeTool}
+              measurePoints={measurePoints}
+              onAddMeasurePoint={handleAddMeasurePoint}
+              profileHoverT={profileHoverT}
             />
+          </div>
+        )}
 
-            {/* Multi-Site 4-Scenario Trade-Off Pinboard */}
-            <ComparisonMatrix
-              pinnedScenarios={pinnedScenarios}
-              onRemoveScenario={(id) =>
-                setPinnedScenarios((prev) => prev.filter((s) => s.scenario_id !== id))
-              }
-              onPinCurrent={handlePinCurrentScenario}
-              onLoadReferencePreset={handleLoadReferencePreset}
-              isLoadingPreset={isLoadingPreset}
-            />
-          </>
-        ) : (
-          /* SINGLE-SITE DEEP-DIVE VIEW: Full 3D DEM + 360° Polar Radar + Launch-Slip Cliff Sweep */
-          <>
-            <div className="bg-[#111827] border border-gray-800 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-start sm:items-center gap-2.5 text-xs">
-                <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
-                <div>
-                  <span className="font-bold text-white mr-2">{evaluation.site.name}:</span>
-                  <span className="text-gray-300">{evaluation.site.description}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {evaluation.site.program_tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-0.5 rounded bg-gray-800 text-amber-300 border border-gray-700 text-[10px] font-mono font-semibold"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {isLoading && (
-                  <span className="text-[11px] font-mono text-sky-400 animate-pulse ml-2">
-                    Recomputing Ephemeris...
-                  </span>
-                )}
-              </div>
+        {projection === '2d_polar' && (
+          <div className="w-full h-full flex items-center justify-center p-14 bg-[#05070b]">
+            <div className="w-full max-w-[680px] h-full max-h-[680px]">
+              <PolarSkyChart
+                horizonProfile={evaluation.horizon_profile}
+                timeline={evaluation.timeline}
+                currentStepIndex={currentStepIndex}
+                latDeg={evaluation.site.lat_deg}
+                commsMarginDeg={commsMarginDeg}
+                personaMode={personaMode}
+                onSelectStep={setCurrentStepIndex}
+              />
             </div>
+          </div>
+        )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-              <div className="lg:col-span-7 min-h-[420px]">
-                <LunarTerrain3D
-                  site={evaluation.site}
-                  terrainGrid={evaluation.terrain_grid}
-                  timeline={evaluation.timeline}
-                  currentStepIndex={currentStepIndex}
-                  arrayType={arrayType}
-                  thermalMetrics={evaluation.thermal_metrics}
-                />
-              </div>
-              <div className="lg:col-span-5 min-h-[420px]">
+        {projection === 'split' && (
+          <div className="w-full h-full grid grid-cols-1 lg:grid-cols-2">
+            <div className="h-full border-r border-slate-800/80">
+              <LunarTerrain3D
+                site={evaluation.site}
+                terrainGrid={evaluation.terrain_grid}
+                timeline={evaluation.timeline}
+                currentStepIndex={currentStepIndex}
+                arrayType={arrayType}
+                thermalMetrics={evaluation.thermal_metrics}
+                compactMode
+                externalShowPsr={psrLayerVisible}
+                onTogglePsr={handleTogglePsrFromViewport}
+                layers={layers}
+                contourSettings={contourSettings}
+                graticuleSettings={graticuleSettings}
+                cameraPreset={cameraPreset}
+                cinematicMode={presentationMode}
+                showEducationalVectors={personaMode === 'educator'}
+                onCursorTelemetry={setHoverCursor}
+                activeTool={activeTool}
+                measurePoints={measurePoints}
+                onAddMeasurePoint={handleAddMeasurePoint}
+                profileHoverT={profileHoverT}
+              />
+            </div>
+            <div className="h-full flex items-center justify-center p-10 bg-[#05070b]">
+              <div className="w-full max-w-[540px] h-full max-h-[540px]">
                 <PolarSkyChart
                   horizonProfile={evaluation.horizon_profile}
                   timeline={evaluation.timeline}
@@ -435,60 +766,588 @@ export function App() {
                 />
               </div>
             </div>
-
-            <div className="bg-[#111827]/90 border border-gray-800/90 rounded-lg px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
-              <span className="flex items-center gap-2 text-gray-300">
-                <ShieldAlert className="w-4 h-4 text-sky-400 shrink-0" />
-                <strong className="font-mono text-sky-300">TERRAIN HORIZON ADVISORY:</strong>{' '}
-                {evaluation.site.engineering_notes}
-              </span>
-              <span className="font-mono text-[11px] text-gray-400">
-                Diviner Temp: {evaluation.kpis.temp_min_k}K–{evaluation.kpis.temp_max_k}K ({evaluation.kpis.temp_min_c}°C to {evaluation.kpis.temp_max_c}°C)
-              </span>
-            </div>
-
-            <MissionTimelineDock
-              timeline={evaluation.timeline}
-              currentStepIndex={currentStepIndex}
-              onChangeStepIndex={(idx) => {
-                setIsPlaying(false);
-                setCurrentStepIndex(idx);
-              }}
-              isPlaying={isPlaying}
-              onTogglePlay={() => setIsPlaying((p) => !p)}
-              playbackSpeed={playbackSpeed}
-              onChangePlaybackSpeed={setPlaybackSpeed}
-              launchSlipDays={launchSlipDays}
-              onChangeLaunchSlipDays={setLaunchSlipDays}
-              slipSweep={slipSweep}
-              effectiveStartUtc={evaluation.effective_start_utc}
-              commsMarginDeg={commsMarginDeg}
-              personaMode={personaMode}
-            />
-
-            <ComparisonMatrix
-              pinnedScenarios={pinnedScenarios}
-              onRemoveScenario={(id) =>
-                setPinnedScenarios((prev) => prev.filter((s) => s.scenario_id !== id))
-              }
-              onPinCurrent={handlePinCurrentScenario}
-              onLoadReferencePreset={handleLoadReferencePreset}
-              isLoadingPreset={isLoadingPreset}
-            />
-          </>
+          </div>
         )}
       </main>
 
-      <InteractiveTutorialModal
-        open={tutorialOpen}
-        onClose={() => setTutorialOpen(false)}
-        onApplyStepAction={handleTutorialStepAction}
+      {/* CHROME (Hidden when SVS Presentation Mode is active) */}
+      {!presentationMode ? (
+        <>
+          <LeftIconRail
+            activePanel={activePanel}
+            onTogglePanel={handleTogglePanel}
+            bookmarkCount={bookmarks.length}
+          />
+
+          <TopRightToolbar
+            projection={projection}
+            onChangeProjection={setProjection}
+            cameraPreset={cameraPreset}
+            onChangeCameraPreset={setCameraPreset}
+            personaMode={personaMode}
+            onChangePersonaMode={setPersonaMode}
+            theme={theme}
+            onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            onEnterPresentation={() => setPresentationMode(true)}
+            onStartTour={startTour}
+            ephemerisEngine={evaluation.ephemeris_engine}
+            isLoading={isLoading}
+          />
+
+          {/* Compact Floating HUD Pill when a Geodesic Tool is Active */}
+          {activeTool !== 'none' && (
+            <div className="fixed top-14 left-1/2 -translate-x-1/2 z-20 hud-panel rounded-full px-3.5 py-1 flex items-center gap-2.5 text-[11px] font-mono border-sky-400/50">
+              <span className="text-sky-300 font-semibold uppercase">
+                {activeTool.replace('_', ' ')}
+              </span>
+              <span className="text-slate-400">• Click 3D surface</span>
+              {measurePoints.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setMeasurePoints((p) => p.slice(0, -1))}
+                    className="text-slate-300 hover:text-white flex items-center gap-0.5"
+                    title="Undo last vertex"
+                  >
+                    <Undo2 className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeasurePoints([]);
+                      setProfileHoverT(null);
+                    }}
+                    className="text-rose-300 hover:text-rose-200 flex items-center gap-0.5"
+                    title="Clear vertices"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => handleSelectTool('none')}
+                className="text-slate-400 hover:text-white ml-1"
+                title="Exit tool [Esc]"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          <SlideOutDrawer
+            isOpen={activePanel !== null}
+            title={activePanel ? drawerMeta[activePanel].title : ''}
+            subtitle={activePanel ? drawerMeta[activePanel].subtitle : ''}
+            wide={activePanel ? drawerMeta[activePanel].wide : false}
+            onClose={() => setActivePanel(null)}
+          >
+            {/* PANEL 1: SITES, COORDINATES & MISSION EPOCH */}
+            {activePanel === 'sites' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="section-kicker block mb-1.5" htmlFor="site-search-input">
+                    Search Lunar Targets
+                  </label>
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="site-search-input"
+                      type="text"
+                      value={siteQuery}
+                      onChange={(e) => setSiteQuery(e.target.value)}
+                      placeholder="Shackleton, Malapert, Artemis, PSR..."
+                      className="w-full bg-slate-950/70 border border-slate-700/70 rounded pl-8 pr-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="section-kicker block">Curated Landing Sites</span>
+                  {filteredSites.map((s) => {
+                    const selected = selectedSiteId === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => handleSelectSite(s.id, null)}
+                        className={`w-full text-left p-2.5 rounded-md border transition-colors ${
+                          selected
+                            ? 'bg-sky-500/15 border-sky-400/60 text-slate-100'
+                            : 'bg-slate-950/50 border-slate-800/80 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold truncate">{s.name}</span>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0 tabular-nums">
+                            {s.lat_deg.toFixed(2)}°
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                          {s.subtitle}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-3 border-t border-slate-800/80 space-y-2">
+                  <span className="section-kicker block">Custom South Pole Coordinates</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-400 block mb-0.5">
+                        Lat (°S: -90 to -80)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        min={-90}
+                        max={90}
+                        value={customLat}
+                        onChange={(e) => setCustomLat(e.target.value)}
+                        className="w-full bg-slate-950/70 border border-slate-700/70 rounded px-2 py-1 text-xs font-mono text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-400 block mb-0.5">
+                        Lon (°E: 0 to 360)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min={-180}
+                        max={360}
+                        value={customLon}
+                        onChange={(e) => setCustomLon(e.target.value)}
+                        className="w-full bg-slate-950/70 border border-slate-700/70 rounded px-2 py-1 text-xs font-mono text-slate-100"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSelectSite('custom', {
+                        lat_deg: Number(customLat) || -88.8,
+                        lon_deg: Number(customLon) || 120.0,
+                        elev_m: 1500,
+                        terrain_type: 'ridge',
+                      })
+                    }
+                    className="w-full py-1.5 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/50 text-sky-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Evaluate Coordinates</span>
+                  </button>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800/80 space-y-2.5">
+                  <span className="section-kicker block">Mission Epoch &amp; Hardware</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-400 block mb-0.5">
+                        Start UTC
+                      </label>
+                      <input
+                        type="date"
+                        value={startDateStr}
+                        onChange={(e) => setStartDateStr(e.target.value)}
+                        className="w-full bg-slate-950/70 border border-slate-700/70 rounded px-2 py-1 text-xs font-mono text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-400 block mb-0.5">
+                        Duration (Days)
+                      </label>
+                      <select
+                        value={durationDays}
+                        onChange={(e) => setDurationDays(Number(e.target.value))}
+                        className="w-full bg-slate-950/70 border border-slate-700/70 rounded px-2 py-1 text-xs font-mono text-slate-100"
+                      >
+                        <option value={14}>14d (Half Lunation)</option>
+                        <option value={30}>30d (1 Lunar Day)</option>
+                        <option value={60}>60d (2 Lunar Days)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-[11px] font-mono mb-1">
+                      <span className="text-slate-400 flex items-center gap-1">
+                        <CalendarClock className="w-3 h-3 text-amber-400" /> Launch Slip
+                      </span>
+                      <span className="text-amber-300 tabular-nums">
+                        {launchSlipDays >= 0 ? `+${launchSlipDays}d` : `${launchSlipDays}d`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-14}
+                      max={28}
+                      step={1}
+                      value={launchSlipDays}
+                      onChange={(e) => setLaunchSlipDays(Number(e.target.value))}
+                      className="sci-slider w-full"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-400 block mb-0.5">
+                        Solar Array
+                      </label>
+                      <select
+                        value={arrayType}
+                        onChange={(e) => setArrayType(e.target.value as SolarArrayType)}
+                        className="w-full bg-slate-950/70 border border-slate-700/70 rounded px-2 py-1 text-xs text-slate-100"
+                      >
+                        <option value="vertical_cylindrical">Vertical Mast</option>
+                        <option value="dual_axis_tracking">Dual-Axis Track</option>
+                        <option value="horizontal_deck">Flat Deck</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-400 block mb-0.5">
+                        Array Area (m²)
+                      </label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={200}
+                        value={arrayAreaM2}
+                        onChange={(e) => setArrayAreaM2(Math.max(1, Number(e.target.value)))}
+                        className="w-full bg-slate-950/70 border border-slate-700/70 rounded px-2 py-1 text-xs font-mono text-slate-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-[11px] font-mono mb-1">
+                      <span className="text-slate-400">DTE Comms Mask Margin</span>
+                      <span className="text-sky-300 tabular-nums">+{commsMarginDeg.toFixed(1)}°</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={8}
+                      step={0.5}
+                      value={commsMarginDeg}
+                      onChange={(e) => setCommsMarginDeg(Number(e.target.value))}
+                      className="sci-slider w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* PANEL 2: FULL LAYER MANAGER */}
+            {activePanel === 'layers' && (
+              <LayerManagerPanel
+                layers={layers}
+                onChangeLayers={setLayers}
+                patchMinElevM={evaluation.terrain_grid.min_elev_m}
+                patchMaxElevM={evaluation.terrain_grid.max_elev_m}
+                contourSettings={contourSettings}
+                onChangeContourSettings={setContourSettings}
+                graticuleSettings={graticuleSettings}
+                onChangeGraticuleSettings={setGraticuleSettings}
+              />
+            )}
+
+            {/* PANEL 3: GEODESIC MEASUREMENT & DEM PROFILE TOOLS */}
+            {activePanel === 'tools' && (
+              <MeasurementToolsPanel
+                site={evaluation.site}
+                terrainGrid={evaluation.terrain_grid}
+                currentStep={currentStep}
+                activeTool={activeTool}
+                onSelectTool={handleSelectTool}
+                points={measurePoints}
+                onUndoPoint={() => setMeasurePoints((prev) => prev.slice(0, -1))}
+                onClearPoints={() => {
+                  setMeasurePoints([]);
+                  setProfileHoverT(null);
+                }}
+                profileHoverT={profileHoverT}
+                onHoverProfileT={setProfileHoverT}
+              />
+            )}
+
+            {/* PANEL 4: BOOKMARKS, SHAREABLE URL & MISSION EXPORTS */}
+            {activePanel === 'bookmarks' && (
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddBookmark}
+                    className="flex-1 py-1.5 px-2.5 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/50 text-sky-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Bookmark className="w-3.5 h-3.5" />
+                    <span>Bookmark View</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyShareUrl}
+                    className="py-1.5 px-2.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Share URL</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* SVS Frame Capture & Scientific Data Export */}
+                <div className="p-2.5 rounded-md bg-slate-950/65 border border-slate-800/90 space-y-2">
+                  <span className="section-kicker block">SVS Frame &amp; Mission Data Export</span>
+                  <button
+                    type="button"
+                    onClick={handleCapturePngSnapshot}
+                    className="w-full py-1.5 px-2.5 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-amber-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>
+                      {snapshotStatus === 'saved'
+                        ? 'PNG Snapshot Downloaded'
+                        : snapshotStatus === 'unavailable'
+                        ? 'Switch to 3D View for PNG'
+                        : 'Capture Annotated 3D PNG'}
+                    </span>
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        exportMissionReportJson(evaluation, {
+                          startDateStr,
+                          durationDays,
+                          launchSlipDays,
+                          arrayType,
+                          arrayAreaM2,
+                          commsMarginDeg,
+                          measurePoints,
+                        })
+                      }
+                      className="py-1.5 px-2 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-mono flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <FileJson className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Report JSON</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        exportTimelineCsv(selectedSiteId, startDateStr, evaluation.timeline)
+                      }
+                      className="py-1.5 px-2 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-mono flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Timeline CSV</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="section-kicker block">Saved Bookmarks</span>
+                  {bookmarks.length === 0 ? (
+                    <p className="text-xs text-slate-400">
+                      No bookmarks saved yet. Save any site, launch slip, and projection combination
+                      for rapid comparison.
+                    </p>
+                  ) : (
+                    bookmarks.map((bm) => (
+                      <div
+                        key={bm.id}
+                        className="p-2.5 rounded bg-slate-950/60 border border-slate-800 flex items-center justify-between gap-2"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSiteId(bm.siteId);
+                            setStartDateStr(bm.startDateStr);
+                            setLaunchSlipDays(bm.launchSlipDays);
+                            setProjection(bm.projection);
+                          }}
+                          className="text-left min-w-0 flex-1"
+                        >
+                          <div className="text-xs font-medium text-slate-100 truncate">
+                            {bm.name}
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-400">
+                            Slip {bm.launchSlipDays >= 0 ? `+${bm.launchSlipDays}d` : `${bm.launchSlipDays}d`} • {bm.projection}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBookmarks((prev) => prev.filter((item) => item.id !== bm.id))
+                          }
+                          aria-label="Delete bookmark"
+                          className="p-1 text-slate-500 hover:text-rose-400"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* PANEL 5: DUAL SCENARIO & 4-SITE TRADE STUDY */}
+            {activePanel === 'compare' && (
+              <div className="space-y-4">
+                <ScenarioCompareDashboard
+                  sites={sites}
+                  comparisonData={dualComparison}
+                  siteAId={selectedSiteId}
+                  onChangeSiteA={(id) => handleSelectSite(id, null)}
+                  slipADays={launchSlipDays}
+                  onChangeSlipA={setLaunchSlipDays}
+                  siteBId={siteBId}
+                  onChangeSiteB={setSiteBId}
+                  slipBDays={slipBDays}
+                  onChangeSlipB={setSlipBDays}
+                  currentStepIndex={currentStepIndex}
+                  onChangeStepIndex={(idx) => {
+                    setIsPlaying(false);
+                    setCurrentStepIndex(idx);
+                  }}
+                  isPlaying={isPlaying}
+                  onTogglePlay={() => setIsPlaying((p) => !p)}
+                  playbackSpeed={playbackSpeed}
+                  onChangePlaybackSpeed={setPlaybackSpeed}
+                  arrayType={arrayType}
+                  commsMarginDeg={commsMarginDeg}
+                  onApplyPreset={(a, sa, b, sb) => {
+                    setSelectedSiteId(a);
+                    setLaunchSlipDays(sa);
+                    setSiteBId(b);
+                    setSlipBDays(sb);
+                  }}
+                />
+                <ComparisonMatrix
+                  pinnedScenarios={pinnedScenarios}
+                  onRemoveScenario={(id) =>
+                    setPinnedScenarios((prev) => prev.filter((s) => s.scenario_id !== id))
+                  }
+                  onPinCurrent={handlePinCurrentScenario}
+                  onLoadReferencePreset={handleLoadReferencePreset}
+                  isLoadingPreset={isLoadingPreset}
+                />
+              </div>
+            )}
+
+            {/* PANEL 6: SCIENCE & FLIGHT RULES GUIDE */}
+            {activePanel === 'guide' && (
+              <div className="space-y-3 text-xs">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivePanel(null);
+                      startTour();
+                    }}
+                    className="flex-1 py-1.5 px-2.5 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300 font-medium flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Guided Tour</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setManualOpen(true)}
+                    className="flex-1 py-1.5 px-2.5 rounded bg-slate-900 border border-slate-700 text-slate-200 font-medium flex items-center justify-center gap-1.5"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Ops Manual</span>
+                  </button>
+                </div>
+
+                <div className="p-3 rounded bg-slate-950/60 border border-slate-800 space-y-1.5">
+                  <span className="section-kicker block">Grazing Solar Geometry (1.54° Tilt)</span>
+                  <p className="text-slate-300 leading-relaxed">
+                    Because the Moon&apos;s obliquity is only 1.54°, polar sunlight travels nearly
+                    horizontally. Elevated rims like Shackleton Ridge capture &gt;85% illumination
+                    while adjacent floors remain permanently shadowed below 45 K.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded bg-slate-950/60 border border-slate-800 space-y-1.5">
+                  <span className="section-kicker block">Flight Rules &amp; Survival Thresholds</span>
+                  <ul className="space-y-1 text-slate-300 font-mono text-[11px]">
+                    <li>• Max Battery Eclipse: &le; 50.0 hours</li>
+                    <li>• Cryogenic PSR Limit: &ge; 70.0 K</li>
+                    <li>• HLS Safe Landing Slope: &lt; 5.0°</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </SlideOutDrawer>
+
+          {/* Floating Color Bar Legend for Active Continuous Layers */}
+          {projection !== '2d_polar' && <FloatingColorBar layers={layers} />}
+
+          <BottomHudOverlays
+            site={evaluation.site}
+            kpis={evaluation.kpis}
+            cursor={activeCursor}
+            timeline={evaluation.timeline}
+            currentStepIndex={currentStepIndex}
+            onChangeStepIndex={(idx) => {
+              setIsPlaying(false);
+              setCurrentStepIndex(idx);
+            }}
+            isPlaying={isPlaying}
+            onTogglePlay={() => setIsPlaying((p) => !p)}
+            playbackSpeed={playbackSpeed}
+            onChangePlaybackSpeed={setPlaybackSpeed}
+            patchSizeKm={evaluation.terrain_grid.patch_size_km}
+          />
+        </>
+      ) : (
+        /* SVS CLEAN PRESENTATION OVERLAY */
+        <div className="fixed inset-0 pointer-events-none z-40 flex flex-col justify-between p-6">
+          <div className="flex items-start justify-between">
+            <div className="hud-panel rounded-md px-4 py-2.5">
+              <div className="section-kicker text-sky-400">NASA LOLA / DIVINER / JPL EPHEMERIS</div>
+              <h1 className="text-base font-semibold text-white mt-0.5">{evaluation.site.name}</h1>
+              <div className="text-xs font-mono text-slate-300 mt-0.5 tabular-nums">
+                {evaluation.site.lat_deg.toFixed(2)}°, {evaluation.site.lon_deg.toFixed(2)}°E •{' '}
+                {currentStep?.timestamp_utc.replace('T', ' ').slice(0, 16)} UTC
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPresentationMode(false)}
+              className="pointer-events-auto hud-panel rounded-md px-3 py-1.5 text-xs font-mono text-slate-200 hover:text-white border-slate-600"
+            >
+              Exit Presentation [Esc]
+            </button>
+          </div>
+          <div className="text-[10px] font-mono text-slate-400">
+            LUNA-NAV • Selenographic Illumination &amp; Terrain Visualization
+          </div>
+        </div>
+      )}
+
+      {/* 10-Step Interactive Onboarding Spotlight Tour */}
+      <GuidedTour
+        isOpen={isTourOpen}
+        steps={TOUR_STEPS}
+        currentStepIndex={tourStepIndex}
+        onStepChange={setTourStepIndex}
+        onSkip={() => finishTour('skipped')}
+        onDone={() => finishTour('done')}
+        actionContext={tourActionContext}
       />
 
-      <OperationsManualModal
-        open={manualOpen}
-        onClose={() => setManualOpen(false)}
-      />
+      <OperationsManualModal open={manualOpen} onClose={() => setManualOpen(false)} />
     </div>
   );
 }
