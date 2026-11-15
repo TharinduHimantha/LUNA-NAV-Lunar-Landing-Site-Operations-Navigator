@@ -199,7 +199,7 @@ All scientific logic, data choices, and final design decisions were reviewed by 
 ## 8. Live demo
 
 <!-- TODO: add the link if the app is deployed; otherwise delete this section. -->
-Live demo: *coming soon*
+Live demo: *https://youtu.be/kuVP4UT9j90
 
 ---
 
