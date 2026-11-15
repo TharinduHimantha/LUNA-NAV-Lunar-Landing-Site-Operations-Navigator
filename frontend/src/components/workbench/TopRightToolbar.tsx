@@ -8,6 +8,7 @@ import {
   Sun,
   Moon,
   Presentation,
+  HelpCircle,
 } from 'lucide-react';
 import type { PersonaMode } from '../../types/mission';
 import type { CameraPresetId, ProjectionMode } from '../../types/workbench';
@@ -22,6 +23,7 @@ interface TopRightToolbarProps {
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onEnterPresentation: () => void;
+  onStartTour: () => void;
   ephemerisEngine: string;
   isLoading: boolean;
 }
@@ -36,6 +38,7 @@ export const TopRightToolbar: React.FC<TopRightToolbarProps> = ({
   theme,
   onToggleTheme,
   onEnterPresentation,
+  onStartTour,
   ephemerisEngine,
   isLoading,
 }) => {
@@ -55,6 +58,7 @@ export const TopRightToolbar: React.FC<TopRightToolbarProps> = ({
       <div
         role="group"
         aria-label="Spatial Projection Mode"
+        data-tour="projection"
         className="hud-panel rounded-lg p-1 flex items-center gap-0.5 text-[11px]"
       >
         {(
@@ -152,6 +156,17 @@ export const TopRightToolbar: React.FC<TopRightToolbarProps> = ({
         ) : (
           <Moon className="w-4 h-4 text-sky-400" />
         )}
+      </button>
+
+      {/* Interactive Product Tour Trigger */}
+      <button
+        type="button"
+        onClick={onStartTour}
+        aria-label="Start interactive product tour"
+        className="hud-panel rounded-lg p-1.5 text-slate-300 hover:text-sky-300 transition-colors"
+        title="Start 1-Minute Interactive Tour"
+      >
+        <HelpCircle className="w-4 h-4" />
       </button>
 
       {/* SVS Presentation Mode */}

@@ -84,6 +84,7 @@ export const BottomHudOverlays: React.FC<BottomHudOverlaysProps> = ({
       {/* Bottom-Center: Compact Ephemeris Time Transport Dock */}
       <div
         aria-label="Mission Ephemeris Time Control"
+        data-tour="time-dock"
         className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 hud-panel rounded-md px-3 py-1.5 flex items-center gap-2.5 max-w-[94vw] w-[540px]"
       >
         <div className="flex items-center gap-1 shrink-0">

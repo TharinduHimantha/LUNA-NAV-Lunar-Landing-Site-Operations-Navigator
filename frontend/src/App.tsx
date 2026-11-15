@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type {
   LunarSite,
   SolarArrayType,
@@ -20,6 +20,7 @@ import type {
   ContourSettings,
   GraticuleSettings,
   MeasurePoint3D,
+  TourBeforeActionContext,
 } from './types/workbench';
 import {
   fetchSites,
@@ -31,10 +32,7 @@ import { LunarTerrain3D } from './components/LunarTerrain3D';
 import { PolarSkyChart } from './components/PolarSkyChart';
 import { ComparisonMatrix } from './components/ComparisonMatrix';
 import { ScenarioCompareDashboard } from './components/ScenarioCompareDashboard';
-import {
-  InteractiveTutorialModal,
-  OperationsManualModal,
-} from './components/EducatorOverlay';
+import { OperationsManualModal } from './components/EducatorOverlay';
 import { LeftIconRail } from './components/workbench/LeftIconRail';
 import { SlideOutDrawer } from './components/workbench/SlideOutDrawer';
 import { TopRightToolbar } from './components/workbench/TopRightToolbar';
@@ -42,6 +40,8 @@ import { BottomHudOverlays } from './components/workbench/BottomHudOverlays';
 import { LayerManagerPanel } from './components/workbench/LayerManagerPanel';
 import { FloatingColorBar } from './components/workbench/FloatingColorBar';
 import { MeasurementToolsPanel } from './components/workbench/MeasurementToolsPanel';
+import { GuidedTour } from './components/tour/GuidedTour';
+import { TOUR_STEPS } from './components/tour/tourSteps';
 import {
   buildShareableWorkbenchUrl,
   captureViewportPngSnapshot,
@@ -65,6 +65,8 @@ import {
   FileJson,
   FileSpreadsheet,
 } from 'lucide-react';
+
+const TOUR_STORAGE_KEY = 'luna-nav-tour-v1';
 
 const INITIAL_LAYERS: LayerItemState[] = [
   {
@@ -242,8 +244,16 @@ export function App() {
   const [commsMarginDeg, setCommsMarginDeg] = useState<number>(1.0);
 
   const [personaMode, setPersonaMode] = useState<PersonaMode>('engineering');
-  const [tutorialOpen, setTutorialOpen] = useState<boolean>(false);
   const [manualOpen, setManualOpen] = useState<boolean>(false);
+
+  // Onboarding Product Tour state
+  const [isTourOpen, setIsTourOpen] = useState<boolean>(false);
+  const [tourStepIndex, setTourStepIndex] = useState<number>(0);
+  const preTourStateRef = useRef<{
+    activePanel: RailPanelId | null;
+    projection: ProjectionMode;
+  } | null>(null);
+  const hasAutoStartedTourRef = useRef<boolean>(false);
 
   const [evaluation, setEvaluation] = useState<MissionEvaluationResponse | null>(null);
   const [dualComparison, setDualComparison] = useState<DualScenarioComparisonResponse | null>(null);
@@ -257,6 +267,62 @@ export function App() {
 
   const [pinnedScenarios, setPinnedScenarios] = useState<PinnedScenario[]>([]);
   const [isLoadingPreset, setIsLoadingPreset] = useState<boolean>(false);
+
+  const startTour = useCallback(() => {
+    if (presentationMode) return;
+    preTourStateRef.current = {
+      activePanel,
+      projection,
+    };
+    setIsPlaying(false);
+    setProjection('3d_terrain');
+    setTourStepIndex(0);
+    setIsTourOpen(true);
+  }, [activePanel, projection, presentationMode]);
+
+  const finishTour = useCallback((status: 'done' | 'skipped') => {
+    try {
+      localStorage.setItem(TOUR_STORAGE_KEY, status);
+    } catch {
+      // Ignore storage access errors in restricted profiles
+    }
+    setIsTourOpen(false);
+    if (preTourStateRef.current) {
+      setActivePanel(preTourStateRef.current.activePanel);
+      setProjection(preTourStateRef.current.projection);
+      preTourStateRef.current = null;
+    }
+  }, []);
+
+  const tourActionContext = useMemo<TourBeforeActionContext>(
+    () => ({
+      setActivePanel,
+      setProjection,
+    }),
+    []
+  );
+
+  // Auto-start tour once on first visit (~600ms after initial data loads)
+  useEffect(() => {
+    if (!evaluation || !dualComparison || hasAutoStartedTourRef.current || presentationMode) {
+      return;
+    }
+    hasAutoStartedTourRef.current = true;
+
+    let seen: string | null = null;
+    try {
+      seen = localStorage.getItem(TOUR_STORAGE_KEY);
+    } catch {
+      seen = 'skipped';
+    }
+    if (seen === 'done' || seen === 'skipped') return;
+
+    const timer = window.setTimeout(() => {
+      startTour();
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [evaluation, dualComparison, presentationMode, startTour]);
 
   useEffect(() => {
     fetchSites().then((list) => {
@@ -366,6 +432,9 @@ export function App() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Ignore every key while the onboarding product tour is active
+      if (isTourOpen) return;
+
       const target = e.target as HTMLElement | null;
       if (
         target &&
@@ -418,7 +487,7 @@ export function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [evaluation, presentationMode, activeTool]);
+  }, [isTourOpen, evaluation, presentationMode, activeTool]);
 
   const handleTogglePanel = useCallback((panel: RailPanelId) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -613,6 +682,7 @@ export function App() {
       {/* FULL-BLEED PRIMARY VIEWPORT */}
       <main
         aria-label="Primary Selenographic Visualization Viewport"
+        data-tour="viewport"
         className="fixed inset-0 w-screen h-screen"
       >
         {projection === '3d_terrain' && (
@@ -719,6 +789,7 @@ export function App() {
             theme={theme}
             onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
             onEnterPresentation={() => setPresentationMode(true)}
+            onStartTour={startTour}
             ephemerisEngine={evaluation.ephemeris_engine}
             isLoading={isLoading}
           />
@@ -1179,7 +1250,10 @@ export function App() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setTutorialOpen(true)}
+                    onClick={() => {
+                      setActivePanel(null);
+                      startTour();
+                    }}
                     className="flex-1 py-1.5 px-2.5 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300 font-medium flex items-center justify-center gap-1.5"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
@@ -1262,22 +1336,17 @@ export function App() {
         </div>
       )}
 
-      <InteractiveTutorialModal
-        open={tutorialOpen}
-        onClose={() => setTutorialOpen(false)}
-        onApplyStepAction={(stepIdx: number) => {
-          if (stepIdx === 0) setActivePanel('compare');
-          else if (stepIdx === 1) setIsPlaying(true);
-          else if (stepIdx === 2)
-            setArrayType((p) =>
-              p === 'vertical_cylindrical' ? 'horizontal_deck' : 'vertical_cylindrical'
-            );
-          else if (stepIdx === 3) {
-            setActivePanel('compare');
-            handleLoadReferencePreset();
-          }
-        }}
+      {/* 10-Step Interactive Onboarding Spotlight Tour */}
+      <GuidedTour
+        isOpen={isTourOpen}
+        steps={TOUR_STEPS}
+        currentStepIndex={tourStepIndex}
+        onStepChange={setTourStepIndex}
+        onSkip={() => finishTour('skipped')}
+        onDone={() => finishTour('done')}
+        actionContext={tourActionContext}
       />
+
       <OperationsManualModal open={manualOpen} onClose={() => setManualOpen(false)} />
     </div>
   );

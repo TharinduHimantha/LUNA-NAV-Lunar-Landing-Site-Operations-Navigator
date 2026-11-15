@@ -37,6 +37,7 @@ export const LeftIconRail: React.FC<LeftIconRailProps> = ({
   return (
     <aside
       aria-label="Workbench Tool Rail"
+      data-tour="rail"
       className="fixed left-3 top-1/2 -translate-y-1/2 z-30 hud-panel rounded-xl p-1.5 flex flex-col items-center gap-1.5"
     >
       {/* Compact Brand Emblem */}

@@ -23,6 +23,7 @@ export const SlideOutDrawer: React.FC<SlideOutDrawerProps> = ({
   return (
     <aside
       aria-label={title}
+      data-tour="drawer"
       className={`
         fixed z-30 hud-panel-strong rounded-lg flex flex-col overflow-hidden
         transition-all duration-200 ease-out

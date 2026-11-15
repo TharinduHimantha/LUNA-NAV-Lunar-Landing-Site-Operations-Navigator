@@ -6,10 +6,8 @@ import {
   Zap,
   Mountain,
   ArrowRight,
-  CheckCircle,
   X,
   BookOpen,
-  Sparkles,
   Cpu,
   Terminal,
 } from 'lucide-react';
@@ -149,143 +147,6 @@ export const EducatorOverlay: React.FC<EducatorOverlayProps> = ({
         </div>
       </div>
     </section>
-  );
-};
-
-interface InteractiveTutorialModalProps {
-  open: boolean;
-  onClose: () => void;
-  onApplyStepAction: (actionStep: number) => void;
-}
-
-export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> = ({
-  open,
-  onClose,
-  onApplyStepAction,
-}) => {
-  const [step, setStep] = useState(0);
-  if (!open) return null;
-
-  const steps = [
-    {
-      title: 'Step 1: Compare Artemis III Candidates Side-by-Side',
-      badge: 'TAB 2 • SITE COMPARATOR',
-      body: 'In the Site Comparator tab, we evaluate Shackleton Connecting Ridge (-89.54°S, +2,150 m) directly against Malapert Massif. The Executive Verdict banner synthesizes solar power hours, Direct-to-Earth link uptime, and battery survival margins.',
-      actionLabel: 'Open Comparator (Shackleton vs Malapert)',
-    },
-    {
-      title: 'Step 2: Inspect 3D Grazing Shadows & 360° Polar Radar',
-      badge: 'TAB 1 • MISSION EXPLORER',
-      body: 'Switch to Mission Explorer to inspect the 128×128 LOLA terrain mesh and floating glassmorphism HUD. Click anywhere along the gold solar track on the 360° Polar Horizon Radar to jump straight to that mission hour.',
-      actionLabel: 'Open Explorer & Animate Shadows',
-    },
-    {
-      title: 'Step 3: Test Solar Array Geometry (Vertical Mast vs. Flat Deck)',
-      badge: 'HARDWARE POWER MODEL',
-      body: 'Watch the Array Power telemetry card when toggling from a Vertical Cylindrical Mast (cos El) to a Horizontal Flat Deck (sin El). At a 1.5° grazing polar Sun angle, a flat deck loses over 96% of its electrical output.',
-      actionLabel: 'Toggle Array Geometry Live',
-    },
-    {
-      title: 'Step 4: Simulate Launch Slips & Rank 4 Backup Sites',
-      badge: 'TAB 3 • LAUNCH WINDOW & TRADE STUDY',
-      body: 'Open the Launch Window & Trade Study tab to drag the Launch Schedule Slip slider (-14d to +28d), detect schedule cliffs where darkness exceeds the 50-hour battery survival rule, and rank up to 4 pinned candidates.',
-      actionLabel: 'Load 4-Site Artemis Trade Study',
-    },
-  ];
-
-  const cur = steps[step];
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#0F172A] border border-amber-500/50 rounded-2xl max-w-xl w-full p-5 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-300">
-              Guided Mission Walkthrough ({step + 1} / {steps.length})
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          <span className="inline-block px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 text-[10px] font-mono font-bold">
-            {cur.badge}
-          </span>
-          <h3 className="text-base font-bold text-white">{cur.title}</h3>
-          <p className="text-xs text-slate-300 leading-relaxed">{cur.body}</p>
-        </div>
-
-        <div className="bg-[#080C14] border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs text-slate-400">Apply live action to workspace:</span>
-          <button
-            type="button"
-            onClick={() => onApplyStepAction(step)}
-            className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold transition flex items-center gap-1.5"
-          >
-            <CheckCircle className="w-3.5 h-3.5" />
-            <span>{cur.actionLabel}</span>
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-          <div className="flex gap-1.5">
-            {steps.map((_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setStep(idx)}
-                aria-label={`Jump to tutorial step ${idx + 1}`}
-                className={`w-2.5 h-2.5 rounded-full transition ${
-                  idx === step ? 'bg-amber-400 scale-110' : 'bg-slate-700'
-                }`}
-              />
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            {step > 0 && (
-              <button
-                type="button"
-                onClick={() => setStep(step - 1)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs text-slate-300 hover:text-white transition"
-              >
-                Previous
-              </button>
-            )}
-            {step < steps.length - 1 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onApplyStepAction(step);
-                  setStep(step + 1);
-                }}
-                className="px-4 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 transition"
-              >
-                Next Step
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  onApplyStepAction(step);
-                  onClose();
-                }}
-                className="px-4 py-1.5 rounded-lg bg-emerald-400 text-slate-950 font-bold text-xs hover:bg-emerald-300 transition"
-              >
-                Finish &amp; Explore
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 };
 

@@ -97,3 +97,20 @@ export interface ProfileSamplePoint {
   elevM: number;
   slopeDeg: number;
 }
+
+export type TourPlacement = 'center' | 'right' | 'left' | 'bottom' | 'top';
+
+export interface TourBeforeActionContext {
+  setActivePanel: (panel: RailPanelId | null) => void;
+  setProjection: (mode: ProjectionMode) => void;
+}
+
+export interface TourStep {
+  id: string;
+  title: string;
+  body: string;
+  targetSelector: string | null;
+  placement: TourPlacement;
+  shortcutChips?: { key: string; label: string }[];
+  beforeAction?: (ctx: TourBeforeActionContext) => void;
+}
