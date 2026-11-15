@@ -1,7 +1,6 @@
 export type RailPanelId =
   | 'sites'
   | 'layers'
-  | 'projection'
   | 'tools'
   | 'bookmarks'
   | 'compare'

@@ -394,8 +394,6 @@ export function App() {
         setActivePanel((p) => (p === 'sites' ? null : 'sites'));
       } else if (key === 'l') {
         setActivePanel((p) => (p === 'layers' ? null : 'layers'));
-      } else if (key === 'p') {
-        setActivePanel((p) => (p === 'projection' ? null : 'projection'));
       } else if (key === 't') {
         setActivePanel((p) => (p === 'tools' ? null : 'tools'));
       } else if (key === 'b') {
@@ -590,10 +588,6 @@ export function App() {
     layers: {
       title: 'Scientific Layers, Contours & Stretches',
       subtitle: 'Reorder stack, adjust min/max/gamma ramps & inspect provenance',
-    },
-    projection: {
-      title: 'Projection & Camera Framing',
-      subtitle: '3D terrain, 2D polar stereographic, and split comparison',
     },
     tools: {
       title: 'Geodesic Measurement & DEM Profile',
@@ -988,75 +982,7 @@ export function App() {
               />
             )}
 
-            {/* PANEL 3: PROJECTION & CAMERA PRESETS */}
-            {activePanel === 'projection' && (
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <span className="section-kicker block">Spatial Projection</span>
-                  {(
-                    [
-                      {
-                        id: '3d_terrain',
-                        title: '3D LOLA Topographic Terrain',
-                        desc: 'Interactive 20×20 km local tangent heightfield with dynamic horizon-raycast shadows.',
-                      },
-                      {
-                        id: '2d_polar',
-                        title: '2D Polar Azimuthal Horizon Projection',
-                        desc: 'Topocentric 360° sky-dome and terrain mask H(Az) for grazing illumination.',
-                      },
-                      {
-                        id: 'split',
-                        title: 'Synchronized Split View',
-                        desc: 'Side-by-side 3D terrain and 2D polar projection locked to the same epoch.',
-                      },
-                    ] as const
-                  ).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setProjection(p.id)}
-                      className={`w-full text-left p-2.5 rounded-md border transition-colors ${
-                        projection === p.id
-                          ? 'bg-sky-500/15 border-sky-400/60 text-slate-100'
-                          : 'bg-slate-950/50 border-slate-800/80 text-slate-300 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="text-xs font-semibold">{p.title}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{p.desc}</div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="pt-3 border-t border-slate-800/80 space-y-1.5">
-                  <span className="section-kicker block">Camera Framing Presets</span>
-                  <div className="grid grid-cols-3 gap-1.5 font-mono text-[11px]">
-                    {(
-                      [
-                        { id: 'orbit', label: 'Orbit' },
-                        { id: 'top_down', label: 'Nadir' },
-                        { id: 'low_oblique', label: 'Oblique' },
-                      ] as const
-                    ).map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setCameraPreset(c.id)}
-                        className={`py-1.5 rounded border transition-colors ${
-                          cameraPreset === c.id
-                            ? 'bg-sky-500/20 border-sky-400/50 text-sky-300 font-semibold'
-                            : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
-                        }`}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PANEL 4: GEODESIC MEASUREMENT & DEM PROFILE TOOLS */}
+            {/* PANEL 3: GEODESIC MEASUREMENT & DEM PROFILE TOOLS */}
             {activePanel === 'tools' && (
               <MeasurementToolsPanel
                 site={evaluation.site}
@@ -1075,7 +1001,7 @@ export function App() {
               />
             )}
 
-            {/* PANEL 5: BOOKMARKS, SHAREABLE URL & MISSION EXPORTS */}
+            {/* PANEL 4: BOOKMARKS, SHAREABLE URL & MISSION EXPORTS */}
             {activePanel === 'bookmarks' && (
               <div className="space-y-4">
                 <div className="flex gap-2">
@@ -1203,7 +1129,7 @@ export function App() {
               </div>
             )}
 
-            {/* PANEL 6: DUAL SCENARIO & 4-SITE TRADE STUDY */}
+            {/* PANEL 5: DUAL SCENARIO & 4-SITE TRADE STUDY */}
             {activePanel === 'compare' && (
               <div className="space-y-4">
                 <ScenarioCompareDashboard
@@ -1247,7 +1173,7 @@ export function App() {
               </div>
             )}
 
-            {/* PANEL 7: SCIENCE & FLIGHT RULES GUIDE */}
+            {/* PANEL 6: SCIENCE & FLIGHT RULES GUIDE */}
             {activePanel === 'guide' && (
               <div className="space-y-3 text-xs">
                 <div className="flex gap-2">
